@@ -24,6 +24,8 @@
     --c-charta: #4fc3c0;
     --c-print: #a3675a;
     --c-textbox: #a48fc7;
+    --c-cloud: #dba077;
+    --c-texloop: #8ea06c;
   }
 
   *{ box-sizing:border-box; }
@@ -84,7 +86,7 @@
     padding:72px 0 56px;
     border-bottom:1px solid var(--line);
   }
-  .hero .wrap{
+  .hero-content{
     max-width:640px;
   }
   .eyebrow{
@@ -131,19 +133,6 @@
     color:var(--accent-dim);
     font-size:9px;
   }
-
-  /* ---------- philosophy strip ---------- */
-  .philosophy{
-    padding:40px 0;
-    border-bottom:1px solid var(--line);
-  }
-  .philosophy p{
-    color:var(--text-dim);
-    max-width:70ch;
-    font-size:15px;
-    margin:0;
-  }
-  .philosophy strong{ color:var(--text); font-weight:600; }
 
   /* ---------- scripts ---------- */
   .scripts{ padding:52px 0 80px; }
@@ -262,7 +251,6 @@
     transition:border-color .15s ease;
   }
   .btn:hover{ border-color:var(--tab, var(--accent)); }
-  .btn.ghost{ background:transparent; color:var(--text-dim); }
 
   /* ---------- footer ---------- */
   footer{
@@ -304,9 +292,9 @@
 
   <section class="hero">
     <div class="wrap">
-      <div>
+      <div class="hero-content">
         <p class="eyebrow">JSX-Bibliothek — Adobe After Effects</p>
-        <h1>Kein Plugin.<br>Nur Expressions.</h1>
+        <h1>After Effects<br>Skripte.</h1>
         <p class="lead">Sechs eigene Skripte, die native AE-Werkzeuge bis an ihren Anschlag ausreizen — expression-getrieben, robust gegen die deutsche Lokalisierung, ohne eine einzige Fremd-Plugin-Abhängigkeit.</p>
         <ul class="principles">
           <li>Nur Bordmittel</li>
@@ -317,20 +305,14 @@
     </div>
   </section>
 
-  <section class="philosophy">
-    <div class="wrap">
-      <p><strong>Der Ansatz hinter jedem Skript:</strong> alles, was geht, läuft über Effekt-Regler und Expressions statt über gerenderte Einmal-Ergebnisse — änderbar, keyframebar, ohne Rebuild. Weil After Effects auf Deutsch läuft, verlassen sich die Skripte nirgends blind auf <span class="mono">matchName</span>-Zugriffe; jede Property wird über <span class="mono">propAny()</span>/<span class="mono">setAny()</span> mit Index-Fallback angesprochen. Wo sinnvoll, bringt ein Skript eine eigene Selbstdiagnose mit, die die eigenen Expressions verifiziert.</p>
-    </div>
-  </section>
-
   <section class="scripts" id="scripts">
     <div class="wrap">
-      <h2>Skripte — 6</h2>
+      <h2>Skripte — 8</h2>
 
-      <details class="card" style="--tab:var(--c-glow)" open>
+      <details class="card" style="--tab:var(--c-glow)">
         <summary>
           <div class="title-block">
-            <h3>Glow.jsx</h3>
+            <h3>GlowGlow.jsx</h3>
             <p class="desc">Ein-Klick additiver Glow nach dem Deep-Glow-Prinzip — mehrstufig, mit optionaler Einfärbung nur des Scheins.</p>
           </div>
           <span class="status">Färbung · aktuell</span>
@@ -345,8 +327,7 @@
             <span class="chip">Glow-Farbe</span><span class="chip">Färbung</span>
           </div>
           <div class="card-footer">
-            <a class="btn" href="scripts/Glow.jsx" download>Herunterladen</a>
-            <a class="btn ghost" href="scripts/Glow.jsx">Quelltext ansehen</a>
+            <a class="btn" href="scripts/GlowGlow.jsx" download>Herunterladen</a>
           </div>
         </div></div>
       </details>
@@ -370,7 +351,6 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="scripts/ArrowBuilder.jsx" download>Herunterladen</a>
-            <a class="btn ghost" href="scripts/ArrowBuilder.jsx">Quelltext ansehen</a>
           </div>
         </div></div>
       </details>
@@ -394,7 +374,6 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="scripts/ChartBuilder.jsx" download>Herunterladen</a>
-            <a class="btn ghost" href="scripts/ChartBuilder.jsx">Quelltext ansehen</a>
           </div>
         </div></div>
       </details>
@@ -417,7 +396,6 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="scripts/ChartAnimator.jsx" download>Herunterladen</a>
-            <a class="btn ghost" href="scripts/ChartAnimator.jsx">Quelltext ansehen</a>
           </div>
         </div></div>
       </details>
@@ -440,7 +418,6 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="scripts/PrintLook.jsx" download>Herunterladen</a>
-            <a class="btn ghost" href="scripts/PrintLook.jsx">Quelltext ansehen</a>
           </div>
         </div></div>
       </details>
@@ -463,7 +440,51 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="scripts/TextBox.jsx" download>Herunterladen</a>
-            <a class="btn ghost" href="scripts/TextBox.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-cloud)">
+        <summary>
+          <div class="title-block">
+            <h3>CloudGenerator.jsx</h3>
+            <p class="desc">Wolken-Generator mit Wolkentyp-Auswahl, organischer Varianz und einem einzigen Regler für plastisches 3D-Volumen.</p>
+          </div>
+          <span class="status">Ebene erzeugen</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Baut eine Wolkenebene aus Fractal Noise (Cloudy + Spline) im Modus „Bildschirm“ über einem Himmel-Verlauf, wahlweise als Wolkenhimmel, große 3D-Cumulus, Federwolken, geschlossene Stratus-Decke oder Schäfchenwolken. „Varianz“ und ein Zufalls-Seed sorgen für organischere, unregelmäßige Formen statt gleichförmigem Rauschen; der Regler „3D-Volumen“ steuert Reliefhöhe, Rundung, Streiflicht und Schattentiefe gemeinsam. Eine Lichtebene simuliert die Sonne, deren Position über ein frei verschiebbares Null-Objekt gesteuert wird. Ein „Würfeln“-Button erzeugt auf Knopfdruck einen neuen Himmel.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Wolkentyp</span><span class="chip">Varianz</span><span class="chip">Seed</span>
+            <span class="chip">3D-Volumen</span><span class="chip">Licht-Farbe</span><span class="chip">Licht-Intensität</span>
+            <span class="chip">Sonnen-Größe</span><span class="chip">Würfeln</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/CloudGenerator.jsx" download>Herunterladen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-texloop)">
+        <summary>
+          <div class="title-block">
+            <h3>TextureLoop.jsx</h3>
+            <p class="desc">Versetzt, dreht und zoomt Textur-Ebenen im einstellbaren Takt zu einem randlosen Loop.</p>
+          </div>
+          <span class="status">Loop</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Animiert eine Textur-Ebene über Motion Tile so, dass sie sich in einem einstellbaren Takt (FPS) zufällig versetzt, dreht und zoomt — durch gespiegelte Kacheln entstehen dabei nie Lücken an den Rändern. Rotation läuft über eine exakt aus dem Drehwinkel berechnete Deckungs-Skalierung, damit die Kachel immer vollflächig bleibt. Alle Bewegungsregler starten bei 0: direkt nach dem Anwenden passiert bewusst noch nichts, bis ein Wert hochgezogen wird.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">FPS</span><span class="chip">Rotation</span><span class="chip">Offset Geschwindigkeit</span>
+            <span class="chip">Offset Richtung</span><span class="chip">Mirror Edges</span><span class="chip">Levels</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/TextureLoop.jsx" download>Herunterladen</a>
           </div>
         </div></div>
       </details>
