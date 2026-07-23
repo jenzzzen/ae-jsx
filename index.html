@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSX für After Effects — Bibliothek</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14161b;
+    --bg-panel: #1b1e24;
+    --bg-panel-raised: #21252c;
+    --line: #2c3038;
+    --text: #e9e6df;
+    --text-dim: #9198a3;
+    --text-faint: #5b6270;
+    --accent: #57cfe0;
+    --accent-dim: #3a8f9c;
+
+    --c-glow: #d8c34a;
+    --c-arrow: #6fae6f;
+    --c-chartb: #4e85b3;
+    --c-charta: #4fc3c0;
+    --c-print: #a3675a;
+    --c-textbox: #a48fc7;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', system-ui, sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .mono{ font-family:'JetBrains Mono', ui-monospace, monospace; }
+
+  a{ color:inherit; }
+
+  ::selection{ background:var(--accent); color:#0d1013; }
+
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+    padding:0 28px;
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    padding:22px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .brand{
+    font-family:'JetBrains Mono', monospace;
+    font-size:14px;
+    letter-spacing:0.02em;
+    color:var(--text-dim);
+  }
+  .brand b{ color:var(--text); font-weight:600; }
+  .topbar nav a{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    color:var(--text-dim);
+    text-decoration:none;
+    border:1px solid var(--line);
+    padding:7px 14px;
+    border-radius:3px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .topbar nav a:hover{ border-color:var(--accent-dim); color:var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding:72px 0 56px;
+    border-bottom:1px solid var(--line);
+  }
+  .hero .wrap{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:56px;
+    align-items:center;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--accent);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    margin:0 0 16px;
+  }
+  .hero h1{
+    font-size:clamp(30px, 4vw, 44px);
+    line-height:1.12;
+    letter-spacing:-0.01em;
+    margin:0 0 20px;
+    font-weight:600;
+  }
+  .hero p.lead{
+    color:var(--text-dim);
+    font-size:16px;
+    max-width:46ch;
+    margin:0 0 28px;
+  }
+  .principles{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    list-style:none;
+    padding:0; margin:0;
+  }
+  .principles li{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    border:1px solid var(--line);
+    padding:6px 11px;
+    border-radius:3px;
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .principles li::before{
+    content:"◆";
+    color:var(--accent-dim);
+    font-size:9px;
+  }
+
+  /* ---- fake effect-controls panel / live glow demo ---- */
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 14px;
+    background:var(--bg-panel-raised);
+    border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  .panel-head .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--c-glow);
+  }
+  .stage{
+    height:150px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 50% 40%, #1a1d23 0%, #101215 75%);
+    position:relative;
+  }
+  #glowDemo{
+    width:34px; height:34px;
+    border-radius:50%;
+    background:#fff6df;
+    transition:box-shadow .08s linear, background .08s linear;
+  }
+  .controls{ padding:6px 14px 16px; }
+  .ctrl-row{
+    display:grid;
+    grid-template-columns:96px 1fr 40px;
+    align-items:center;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .ctrl-row:last-child{ border-bottom:none; }
+  .ctrl-row label{
+    font-size:12px;
+    color:var(--text-dim);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .whip{
+    width:9px; height:9px;
+    border:1.3px solid var(--text-faint);
+    border-radius:50%;
+    border-top-color:transparent;
+    flex:none;
+  }
+  .ctrl-row input[type="range"]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:100%;
+    height:3px;
+    border-radius:2px;
+    background:var(--line);
+    outline:none;
+  }
+  .ctrl-row input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:12px; height:12px;
+    border-radius:2px;
+    background:var(--accent);
+    cursor:pointer;
+    border:none;
+  }
+  .ctrl-row input[type="range"]::-moz-range-thumb{
+    width:12px; height:12px;
+    border-radius:2px;
+    background:var(--accent);
+    cursor:pointer;
+    border:none;
+  }
+  .ctrl-row .val{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--text-faint);
+    text-align:right;
+  }
+  .ctrl-row .swatchrow{
+    display:flex;
+    gap:6px;
+  }
+  .swatch{
+    width:17px; height:17px;
+    border-radius:3px;
+    border:1px solid rgba(255,255,255,0.15);
+    cursor:pointer;
+    padding:0;
+  }
+  .swatch.active{ outline:1.5px solid var(--text); outline-offset:2px; }
+
+  /* ---------- philosophy strip ---------- */
+  .philosophy{
+    padding:40px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .philosophy p{
+    color:var(--text-dim);
+    max-width:70ch;
+    font-size:15px;
+    margin:0;
+  }
+  .philosophy strong{ color:var(--text); font-weight:600; }
+
+  /* ---------- scripts ---------- */
+  .scripts{ padding:52px 0 80px; }
+  .scripts h2{
+    font-size:12px;
+    font-family:'JetBrains Mono', monospace;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin:0 0 22px;
+  }
+
+  .card{
+    border:1px solid var(--line);
+    border-left:3px solid var(--tab, var(--accent));
+    border-radius:4px;
+    margin-bottom:10px;
+    background:var(--bg-panel);
+    transition:border-color .15s ease;
+  }
+  .card:hover{ border-color:var(--line); border-left-color:var(--tab, var(--accent)); }
+
+  .card summary{
+    list-style:none;
+    cursor:pointer;
+    padding:18px 20px;
+    display:grid;
+    grid-template-columns:1fr auto auto;
+    align-items:center;
+    gap:16px;
+  }
+  .card summary::-webkit-details-marker{ display:none; }
+
+  .card summary .title-block{ min-width:0; }
+  .card summary h3{
+    font-family:'JetBrains Mono', monospace;
+    font-size:15px;
+    font-weight:600;
+    margin:0 0 5px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .card summary .desc{
+    font-size:13.5px;
+    color:var(--text-dim);
+    margin:0;
+    max-width:62ch;
+  }
+  .card summary .status{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    color:var(--text-faint);
+    white-space:nowrap;
+    display:none;
+  }
+  @media (min-width:720px){
+    .card summary .status{ display:block; }
+  }
+  .chev{
+    width:20px; height:20px;
+    flex:none;
+    color:var(--text-faint);
+    transition:transform .18s ease;
+  }
+  .card[open] .chev{ transform:rotate(90deg); }
+
+  .card-body{
+    padding:0 20px 22px 20px;
+    border-top:1px solid var(--line);
+  }
+  .card-body .body-inner{ padding-top:16px; }
+  .card-body p{
+    color:var(--text-dim);
+    font-size:13.5px;
+    max-width:70ch;
+    margin:0 0 14px;
+  }
+  .reglerlabel{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin:0 0 8px;
+  }
+  .chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    margin:0 0 16px;
+  }
+  .chip{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--text-dim);
+    background:var(--bg-panel-raised);
+    border:1px solid var(--line);
+    padding:4px 9px;
+    border-radius:3px;
+  }
+  .card-footer{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    text-decoration:none;
+    padding:8px 14px;
+    border-radius:3px;
+    border:1px solid var(--line);
+    color:var(--text);
+    background:var(--bg-panel-raised);
+    transition:border-color .15s ease;
+  }
+  .btn:hover{ border-color:var(--tab, var(--accent)); }
+  .btn.ghost{ background:transparent; color:var(--text-dim); }
+
+  /* ---------- footer ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:36px 0 44px;
+  }
+  footer .wrap{
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  footer p{
+    font-size:12.5px;
+    color:var(--text-faint);
+    margin:0;
+    max-width:52ch;
+  }
+  footer .mono{ color:var(--text-dim); }
+
+  @media (max-width:860px){
+    .hero .wrap{ grid-template-columns:1fr; }
+    .hero{ padding:48px 0 40px; }
+    .card summary{ grid-template-columns:1fr auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="wrap">
+      <div class="brand">jens<span style="color:var(--text-faint)">/</span><b>ae-jsx</b></div>
+      <nav><a href="#scripts">Skripte ↓</a></nav>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">JSX-Bibliothek — Adobe After Effects</p>
+        <h1>Kein Plugin.<br>Nur Expressions.</h1>
+        <p class="lead">Sechs eigene Skripte, die native AE-Werkzeuge bis an ihren Anschlag ausreizen — expression-getrieben, robust gegen die deutsche Lokalisierung, ohne eine einzige Fremd-Plugin-Abhängigkeit.</p>
+        <ul class="principles">
+          <li>Nur Bordmittel</li>
+          <li>matchName-sicher (DE)</li>
+          <li>Selbstdiagnose eingebaut</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="dot"></span> Effekteinstellungen — Glow</div>
+        <div class="stage"><div id="glowDemo"></div></div>
+        <div class="controls">
+          <div class="ctrl-row">
+            <label><span class="whip"></span>Belichtung</label>
+            <input type="range" id="rExposure" min="0" max="100" value="50">
+            <span class="val" id="vExposure">50</span>
+          </div>
+          <div class="ctrl-row">
+            <label><span class="whip"></span>Radius</label>
+            <input type="range" id="rRadius" min="0" max="100" value="45">
+            <span class="val" id="vRadius">45</span>
+          </div>
+          <div class="ctrl-row">
+            <label><span class="whip"></span>Färbung</label>
+            <input type="range" id="rTint" min="0" max="100" value="30">
+            <span class="val" id="vTint">30</span>
+          </div>
+          <div class="ctrl-row">
+            <label>Glow-Farbe</label>
+            <div class="swatchrow" id="swatches">
+              <button class="swatch active" style="background:#ffcf7a" data-c="255,207,122"></button>
+              <button class="swatch" style="background:#7ad0ff" data-c="122,208,255"></button>
+              <button class="swatch" style="background:#ff8a8a" data-c="255,138,138"></button>
+              <button class="swatch" style="background:#a58aff" data-c="165,138,255"></button>
+            </div>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="philosophy">
+    <div class="wrap">
+      <p><strong>Der Ansatz hinter jedem Skript:</strong> alles, was geht, läuft über Effekt-Regler und Expressions statt über gerenderte Einmal-Ergebnisse — änderbar, keyframebar, ohne Rebuild. Weil After Effects auf Deutsch läuft, verlassen sich die Skripte nirgends blind auf <span class="mono">matchName</span>-Zugriffe; jede Property wird über <span class="mono">propAny()</span>/<span class="mono">setAny()</span> mit Index-Fallback angesprochen. Wo sinnvoll, bringt ein Skript eine eigene Selbstdiagnose mit, die die eigenen Expressions verifiziert.</p>
+    </div>
+  </section>
+
+  <section class="scripts" id="scripts">
+    <div class="wrap">
+      <h2>Skripte — 6</h2>
+
+      <details class="card" style="--tab:var(--c-glow)" open>
+        <summary>
+          <div class="title-block">
+            <h3>Glow.jsx</h3>
+            <p class="desc">Ein-Klick additiver Glow nach dem Deep-Glow-Prinzip — mehrstufig, mit optionaler Einfärbung nur des Scheins.</p>
+          </div>
+          <span class="status">Färbung · aktuell</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Dupliziert die Ebene, isoliert einen 4-oktavigen additiven Schein darauf und legt ihn im Modus „Hinzufügen“ über das unangetastete Original. Die Belichtungs-Kennlinie ist quadratisch, damit sich niedrige Werte fein dosieren lassen. Eine <span class="mono">ADBE Tint</span> sitzt am Ende der Effektkette und färbt ausschließlich den isolierten Schein — bei deaktivierter Checkbox ohne jede Wirkung.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Belichtung</span><span class="chip">Radius</span><span class="chip">Schwellenwert</span>
+            <span class="chip">Flacker-Tempo</span><span class="chip">Flacker-Stärke</span><span class="chip">Einfärben</span>
+            <span class="chip">Glow-Farbe</span><span class="chip">Färbung</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/Glow.jsx" download>Herunterladen</a>
+            <a class="btn ghost" href="scripts/Glow.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-arrow)">
+        <summary>
+          <div class="title-block">
+            <h3>ArrowBuilder.jsx</h3>
+            <p class="desc">Parametrische Pfeile als Formebene — Typ, Krümmung und Spitzenform komplett über Regler, kein Pfad von Hand.</p>
+          </div>
+          <span class="status">Shape-Tool</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Erzeugt eine Formebene, deren kompletter Pfad per Expression aus den Effekt-Reglern berechnet wird: gerade, Bogen, S-Kurve, Winkel oder Zickzack, wahlweise mit Spitze an beiden Enden. Krümmung, Spitzenlänge und -breite bleiben jederzeit live nachjustierbar.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Pfeil-Typ</span><span class="chip">Länge</span><span class="chip">Krümmung</span>
+            <span class="chip">Konturstärke</span><span class="chip">Spitzen-Stil</span><span class="chip">Spitzen-Länge</span>
+            <span class="chip">Spitzen-Breite</span><span class="chip">Doppelspitze</span><span class="chip">Farbe</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/ArrowBuilder.jsx" download>Herunterladen</a>
+            <a class="btn ghost" href="scripts/ArrowBuilder.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-chartb)">
+        <summary>
+          <div class="title-block">
+            <h3>ChartBuilder.jsx</h3>
+            <p class="desc">Andockbares Panel für Diagramme als Formebenen — Balken, Kreis, Linie, Fläche, inklusive CSV-Import.</p>
+          </div>
+          <span class="status">Panel</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Baut Diagramme direkt als Formebenen mit eigenen Achsen, Raster und Sortierung (original, auf-/absteigend, alphabetisch). Daten kommen von Hand oder aus CSV/TXT. Konturstärken sind gegen Ebenenskalierung kompensiert, sodass sie im Bild immer stimmen.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Diagrammart</span><span class="chip">X-/Y-Achse</span><span class="chip">Raster</span>
+            <span class="chip">Einfärbung je Reihe/Segment</span><span class="chip">Kontur</span><span class="chip">Innenradius</span>
+            <span class="chip">Sortierung</span><span class="chip">CSV-Import</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/ChartBuilder.jsx" download>Herunterladen</a>
+            <a class="btn ghost" href="scripts/ChartBuilder.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-charta)">
+        <summary>
+          <div class="title-block">
+            <h3>ChartAnimator.jsx</h3>
+            <p class="desc">ChartBuilder, aber jede Diagrammart läuft über einen einzigen keyframebaren Master-Regler an.</p>
+          </div>
+          <span class="status">Panel</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Ein Regler „Animation“ (0–100) steuert den gesamten Ablauf und ist frei keyframebar — Timing, Tempo und Pausen liegen komplett auf der Zeitleiste statt in Skript-Parametern. Linien und Flächen zeichnen sich auf, Balken wachsen gestaffelt, Kreise wischen im Uhrzeigersinn auf. Bei 100 entspricht das Bild exakt dem statischen ChartBuilder-Ergebnis.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Animation (Master)</span><span class="chip">Staffelung</span><span class="chip">Sortierung</span>
+            <span class="chip">+ alle ChartBuilder-Regler</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/ChartAnimator.jsx" download>Herunterladen</a>
+            <a class="btn ghost" href="scripts/ChartAnimator.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-print)">
+        <summary>
+          <div class="title-block">
+            <h3>PrintLook.jsx</h3>
+            <p class="desc">Risograph-/Digitaldruck-Duplikator — Walzenspuren, Farbplatten, Ghosting und Papierstruktur in einer Präkomp.</p>
+          </div>
+          <span class="status">v7.0</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Präkomponiert markierte Ebenen (oder die ganze Komp) in einen Risographie-Look: Walzenspuren, einzelne Farbplatten je Tinte, Ghosting darunter und eine Papierebene mit Korn. Ein Zufalls-Seed („Variante“) legt Passer, Schieflage und Rasterphasen fest — dieselbe Zahl ergibt exakt denselben Druck. Intern schreibt jeder Regler nur bei echter Werteänderung, um den Rendercache zu schonen.</p>
+          <p class="reglerlabel">Aufbau</p>
+          <div class="chips">
+            <span class="chip">Walzen</span><span class="chip">Platten (Tinten)</span><span class="chip">Geist / Ghosting</span>
+            <span class="chip">Papier</span><span class="chip">Variante</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/PrintLook.jsx" download>Herunterladen</a>
+            <a class="btn ghost" href="scripts/PrintLook.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-textbox)">
+        <summary>
+          <div class="title-block">
+            <h3>TextBox.jsx</h3>
+            <p class="desc">Ein-Klick-Box hinter Text-Ebenen, die per sourceRectAtTime() live mit dem Text mitwächst.</p>
+          </div>
+          <span class="status">Ein-Klick</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Legt hinter jede ausgewählte Textebene eine Box an, die an die Text-Ebene geparentet ist und sich per Expression an ihre Ausmaße anpasst. Referenziert wird über <span class="mono">thisLayer.parent</span> — kein Ebenenname nötig, funktioniert also auch nach dem Umbenennen oder Duplizieren.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Abstand X/Y</span><span class="chip">Rundheit</span><span class="chip">Farbe</span>
+            <span class="chip">Deckkraft</span><span class="chip">Kontur</span><span class="chip">Konturbreite</span><span class="chip">Konturfarbe</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="scripts/TextBox.jsx" download>Herunterladen</a>
+            <a class="btn ghost" href="scripts/TextBox.jsx">Quelltext ansehen</a>
+          </div>
+        </div></div>
+      </details>
+
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <p><span class="mono">.jsx</span> ablegen in <span class="mono">%APPDATA%/Adobe/After Effects/&lt;Version&gt;/Scripts/ScriptUI Panels</span>, danach unter <span class="mono">Fenster</span> andocken. „Scripts schreiben in Dateien/Netzwerk erlauben“ muss in den Voreinstellungen aktiv sein.</p>
+      <p class="mono">jens/ae-jsx</p>
+    </div>
+  </footer>
+
+<script>
+  const stage = document.getElementById('glowDemo');
+  const rExposure = document.getElementById('rExposure');
+  const rRadius = document.getElementById('rRadius');
+  const rTint = document.getElementById('rTint');
+  const vExposure = document.getElementById('vExposure');
+  const vRadius = document.getElementById('vRadius');
+  const vTint = document.getElementById('vTint');
+  const swatches = document.querySelectorAll('.swatch');
+
+  let color = [255,207,122];
+
+  function renderGlow(){
+    const exposure = +rExposure.value;
+    const radius = +rRadius.value;
+    const tint = +rTint.value / 100;
+
+    vExposure.textContent = exposure;
+    vRadius.textContent = radius;
+    vTint.textContent = rTint.value;
+
+    // quadratic exposure curve, as in Glow.jsx
+    const e = Math.pow(exposure/100, 2);
+    const base = 6 + (radius/100) * 18;
+
+    const [r,g,b] = color;
+    const shell = 255*(1-tint) + r*tint;
+    const shellG = 255*(1-tint) + g*tint;
+    const shellB = 255*(1-tint) + b*tint;
+
+    let shadows = [];
+    for(let i=1;i<=4;i++){
+      const spread = base * i * 0.9;
+      const blur = base * i * 1.6;
+      const alpha = (0.55 * e) / i;
+      shadows.push(`0 0 ${blur}px ${spread*0.15}px rgba(${r},${g},${b},${alpha.toFixed(3)})`);
+    }
+    stage.style.boxShadow = shadows.join(', ');
+    stage.style.background = `rgb(${shell.toFixed(0)},${shellG.toFixed(0)},${shellB.toFixed(0)})`;
+  }
+
+  [rExposure, rRadius, rTint].forEach(el => el.addEventListener('input', renderGlow));
+
+  swatches.forEach(sw => {
+    sw.addEventListener('click', () => {
+      swatches.forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      color = sw.dataset.c.split(',').map(Number);
+      renderGlow();
+    });
+  });
+
+  renderGlow();
+</script>
+
+</body>
+</html>
