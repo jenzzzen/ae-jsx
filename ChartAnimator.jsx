@@ -98,6 +98,21 @@
  *   Animationsende gelegt ("Am Ende zur Gesamtansicht zoomen").
  * Daten: haendisch oder CSV/TXT (Komma/Semikolon/Tab), Kopfzeile opt.
  * Skalierbar: Regler "Breite"/"Hoehe" steuern alles per Expression.
+ * ZIEL & AKTUALISIEREN
+ *   "Ziel > Komposition": das Panel laesst sich fest an eine Komposition
+ *   binden (ueber die Item-ID, Umbenennen schadet nicht). Einstellung
+ *   "Aktive Komposition" = Verhalten wie bisher.
+ *   "Aktualisieren" baut das Diagramm in der Zielkomposition NEU auf und
+ *   uebernimmt dabei die Handarbeit an der Ebene: Stapelposition,
+ *   Transform (Werte und Keyframes), Ebenenattribute und alle Regler,
+ *   die nicht direkt aus dem Panel kommen - also auch die Keyframes auf
+ *   "Animation" und "Gesamtansicht" sowie Farben, Kontur, Abstand,
+ *   Staffelung, Punkt Groesse, Achsen und Raster. Aus dem Panel kommen
+ *   frisch: Breite, Hoehe, Sortierung, Verfolgen, Sichtfenster,
+ *   Verfolg-Position, Start-Position. Eigenschaften mit Ausdruck werden
+ *   nie zurueckgeschrieben - der Aufbau ist dort die Quelle der Wahrheit.
+ *   Willst du das Timing frisch aus dem Panel (Dauer, Auto-Keyframes),
+ *   nimm "Diagramm erstellen".
  **********************************************************************/
 
 (function ChartAnimator(thisObj) {
@@ -1477,14 +1492,267 @@
         return layer;
     }
 
+    /* ================================================================
+     * ZIEL & AKTUALISIEREN
+     * ----------------------------------------------------------------
+     * 1) ZIELKOMPOSITION
+     *    Das Panel kann fest an eine Komposition gebunden werden
+     *    (Auswahl "Ziel > Komposition"). "Aktive Komposition" =
+     *    Verhalten wie bisher. Gebunden wird ueber die Item-ID, ein
+     *    Umbenennen der Komp schadet also nicht. Ist die gebundene
+     *    Komp geloescht, faellt das Panel still auf "aktiv" zurueck.
+     *
+     * 2) AKTUALISIEREN
+     *    Baut das Diagramm mit den aktuellen Panel-Werten NEU auf,
+     *    behaelt aber alles, was an der Ebene selbst eingestellt wurde:
+     *      - Position im Ebenenstapel
+     *      - Transform der Diagramm-Ebenen (Werte UND Keyframes)
+     *      - Ebenenattribute (An/Aus, Modus, Ein-/Ausstieg, Shy, ...)
+     *      - alle Effektregler, die NICHT aus dem Panel kommen
+     *        (Farben, Kontur, Achsen, Raster, Staffelung ...)
+     *      - Keyframes auf allen uebernommenen Reglern
+     *    Regler, die das Panel direkt schreibt (PANEL_CTRLS), kommen
+     *    bewusst frisch aus dem Panel - sonst waere das Panel wirkungslos.
+     *
+     *    Eigenschaften mit AUSDRUCK werden nie zurueckgeschrieben. Der
+     *    Aufbau ist dort die Quelle der Wahrheit; ein alter Ausdruck
+     *    wuerde sonst mit alten Daten den neuen ueberschreiben.
+     *
+     *    Zuordnung alt -> neu: die Steuer-Ebene wird an ihrem Regler
+     *    "Breite" erkannt (nicht am Namen, der sich mit dem Diagrammtyp
+     *    aendert), alle uebrigen Ebenen ueber ihren Namen. Aendern sich
+     *    die Daten, aendern sich die Namen - diese Ebenen starten dann
+     *    zu Recht mit Standardwerten.
+     * ================================================================ */
+
+    // Regler, die direkt aus dem Panel kommen: beim Aktualisieren NICHT
+    // aus dem Altbestand zurueckholen.
+    var PANEL_CTRLS = {};
+    (function () {
+        var n = ["Breite", "Hoehe", SORT_NAME,
+                 "Verfolgen", "Sichtfenster", "Verfolg-Position", "Start-Position"];
+        for (var i = 0; i < n.length; i++) { PANEL_CTRLS[n[i]] = 1; }
+    })();
+
+    var boundCompId = 0;   // 0 = aktive Komposition
+
+    function compList() {
+        var out = [];
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var it = app.project.item(i);
+            if (it instanceof CompItem) { out.push(it); }
+        }
+        return out;
+    }
+    function compById(id) {
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var it = app.project.item(i);
+            if ((it instanceof CompItem) && it.id === id) { return it; }
+        }
+        return null;
+    }
+    // Gebundene Komp, sonst die aktive. null = nichts brauchbar offen.
+    function targetComp() {
+        if (boundCompId) {
+            var c = compById(boundCompId);
+            if (c) { return c; }
+            boundCompId = 0;
+        }
+        var a = app.project.activeItem;
+        return (a && a instanceof CompItem) ? a : null;
+    }
+
+    // ---- Eigenschaften sichern / zurueckschreiben -------------------
+    function tfProp(ly, mn) {
+        try { return ly.property("ADBE Transform Group").property(mn); } catch (e) { return null; }
+    }
+    // 2D-Ebenen kennen "ADBE Rotation" nicht -> zuerst Rotate Z.
+    function rotProp(ly) { return tfProp(ly, "ADBE Rotate Z") || tfProp(ly, "ADBE Rotation"); }
+
+    function grabProp(p) {
+        if (!p) { return null; }
+        var r = { keys: [], val: null, ex: "" };
+        try { if (p.expressionEnabled && p.expression) { r.ex = p.expression; } } catch (e) {}
+        try {
+            if (p.numKeys > 0) {
+                for (var k = 1; k <= p.numKeys; k++) {
+                    var rec = { t: p.keyTime(k), v: p.keyValue(k) };
+                    try { rec.ii = p.keyInInterpolationType(k); rec.oi = p.keyOutInterpolationType(k); } catch (e1) {}
+                    try { rec.ie = p.keyInTemporalEase(k);      rec.oe = p.keyOutTemporalEase(k); } catch (e2) {}
+                    r.keys.push(rec);
+                }
+            } else {
+                r.val = p.value;
+            }
+        } catch (e3) { return null; }
+        return r;
+    }
+    function sameVal(a, b) {
+        if (a instanceof Array && b instanceof Array) {
+            if (a.length !== b.length) { return false; }
+            for (var i = 0; i < a.length; i++) { if (Math.abs(a[i] - b[i]) > 1e-9) { return false; } }
+            return true;
+        }
+        if (typeof a === "number" && typeof b === "number") { return Math.abs(a - b) < 1e-9; }
+        return (a === b);
+    }
+    // Schreibt nur bei echter Abweichung (jedes setValue verwirft Cache).
+    // Liegt auf der frisch gebauten Eigenschaft ein Ausdruck, bleibt sie
+    // unangetastet - der Aufbau gewinnt.
+    function putProp(p, r, log, label) {
+        if (!p || !r) { return; }
+        try { if (p.expressionEnabled && p.expression) { return; } } catch (e) {}
+        try {
+            if (r.keys.length > 0) {
+                for (var d = p.numKeys; d >= 1; d--) { p.removeKey(d); }
+                for (var i = 0; i < r.keys.length; i++) { p.setValueAtTime(r.keys[i].t, r.keys[i].v); }
+                for (var j = 0; j < r.keys.length; j++) {
+                    var kk = j + 1, rc = r.keys[j];
+                    try { if (rc.ii !== undefined && rc.ii !== null) { p.setInterpolationTypeAtKey(kk, rc.ii, rc.oi); } } catch (e1) {}
+                    try { if (rc.ie) { p.setTemporalEaseAtKey(kk, rc.ie, rc.oe); } } catch (e2) {}
+                }
+            } else if (r.val !== null) {
+                for (var d2 = p.numKeys; d2 >= 1; d2--) { p.removeKey(d2); }
+                if (!sameVal(p.value, r.val)) { p.setValue(r.val); }
+            }
+        } catch (e3) { if (log) { log.push("Uebernahme " + label + ": " + errStr(e3)); } }
+    }
+
+    // Die Steuer-Ebene traegt als einzige den Regler "Breite".
+    function isCtrlLayer(ly) {
+        try { return !!ly.property("ADBE Effect Parade").property("Breite"); } catch (e) { return false; }
+    }
+
+    var XF_MN = ["ADBE Anchor Point", "ADBE Position", "ADBE Scale", "ADBE Opacity"];
+
+    function grabLayer(ly) {
+        var s = { name: ly.name, ctrl: isCtrlLayer(ly), xf: {}, fx: {}, at: {} };
+        for (var i = 0; i < XF_MN.length; i++) { s.xf[XF_MN[i]] = grabProp(tfProp(ly, XF_MN[i])); }
+        s.xf.ROT = grabProp(rotProp(ly));
+        try {
+            var par = ly.property("ADBE Effect Parade");
+            for (var e = 1; e <= par.numProperties; e++) {
+                var fx = par.property(e), bag = {};
+                for (var q = 1; q <= fx.numProperties; q++) {
+                    var pr = null;
+                    try { pr = fx.property(q); } catch (eP) { continue; }
+                    if (!pr || pr.propertyType !== PropertyType.PROPERTY) { continue; }
+                    var g = grabProp(pr);
+                    if (g) { bag[q] = g; }
+                }
+                s.fx[fx.name] = bag;
+            }
+        } catch (e2) {}
+        try {
+            s.at.enabled = ly.enabled; s.at.shy = ly.shy; s.at.locked = ly.locked;
+            s.at.motionBlur = ly.motionBlur; s.at.blend = ly.blendingMode; s.at.label = ly.label;
+            s.at.startTime = ly.startTime; s.at.inPoint = ly.inPoint; s.at.outPoint = ly.outPoint;
+        } catch (e3) {}
+        return s;
+    }
+
+    // Zustand aller erzeugten Ebenen einsammeln - VOR dem Purge.
+    function snapshotGenerated(comp) {
+        var snap = { index: 0, aboveName: "", ctrl: null, byName: {}, n: 0 };
+        for (var i = 1; i <= comp.numLayers; i++) {
+            var ly = comp.layer(i);
+            if (ly.comment !== TAG) { continue; }
+            if (!snap.index) {
+                snap.index = i;
+                // Naechste NICHT erzeugte Ebene darueber merken: daran
+                // wird der Block spaeter wieder eingehaengt.
+                for (var a = i - 1; a >= 1; a--) {
+                    var la = comp.layer(a);
+                    if (la.comment !== TAG) { snap.aboveName = la.name; break; }
+                }
+            }
+            var s = grabLayer(ly);
+            snap.n++;
+            if (s.ctrl && !snap.ctrl) { snap.ctrl = s; }
+            if (!snap.byName[s.name]) { snap.byName[s.name] = s; }
+        }
+        return snap;
+    }
+
+    // Zustand auf die frisch gebauten Ebenen zurueckspielen.
+    function restoreGenerated(comp, snap, log) {
+        if (!snap || snap.n === 0) { return; }
+
+        var fresh = [], i;
+        for (i = 1; i <= comp.numLayers; i++) {
+            if (comp.layer(i).comment === TAG) { fresh.push(comp.layer(i)); }
+        }
+        if (fresh.length === 0) { return; }
+
+        // 1) Stapelposition: hinter die gemerkte Ebene zurueck. Rueckwaerts
+        //    einhaengen, damit die Reihenfolge im Block erhalten bleibt.
+        if (snap.aboveName) {
+            var ref = null;
+            for (i = 1; i <= comp.numLayers; i++) {
+                var lr = comp.layer(i);
+                if (lr.comment !== TAG && lr.name === snap.aboveName) { ref = lr; break; }
+            }
+            if (ref) {
+                for (var m = fresh.length - 1; m >= 0; m--) {
+                    try { fresh[m].moveAfter(ref); } catch (eM) {}
+                }
+            }
+        }
+
+        // 2) Je Ebene: Transform, Effektwerte, Attribute
+        for (var f = 0; f < fresh.length; f++) {
+            var ly = fresh[f];
+            var s = (isCtrlLayer(ly) && snap.ctrl) ? snap.ctrl : snap.byName[ly.name];
+            if (!s) { continue; }
+            try { if (ly.locked) { ly.locked = false; } } catch (eL) {}
+
+            for (var x = 0; x < XF_MN.length; x++) {
+                putProp(tfProp(ly, XF_MN[x]), s.xf[XF_MN[x]], log, XF_MN[x]);
+            }
+            putProp(rotProp(ly), s.xf.ROT, log, "Drehung");
+
+            try {
+                var par = ly.property("ADBE Effect Parade");
+                for (var e = 1; e <= par.numProperties; e++) {
+                    var fx = par.property(e);
+                    if (PANEL_CTRLS[fx.name]) { continue; }      // Panel gewinnt
+                    var bag = s.fx[fx.name];
+                    if (!bag) { continue; }
+                    for (var q = 1; q <= fx.numProperties; q++) {
+                        if (!bag[q]) { continue; }
+                        putProp(fx.property(q), bag[q], log, fx.name);
+                    }
+                }
+            } catch (eF) { if (log) { log.push("Effekt-Uebernahme " + ly.name + ": " + errStr(eF)); } }
+
+            try { if (s.at.blend !== undefined) { ly.blendingMode = s.at.blend; } } catch (e1) {}
+            try { if (s.at.label !== undefined) { ly.label = s.at.label; } } catch (e2) {}
+            try { if (s.at.motionBlur !== undefined) { ly.motionBlur = s.at.motionBlur; } } catch (e3) {}
+            try { if (s.at.startTime !== undefined) { ly.startTime = s.at.startTime; } } catch (e4) {}
+            try { if (s.at.outPoint !== undefined) { ly.outPoint = s.at.outPoint; } } catch (e5) {}
+            try { if (s.at.inPoint !== undefined) { ly.inPoint = s.at.inPoint; } } catch (e6) {}
+            try { if (s.at.enabled !== undefined) { ly.enabled = s.at.enabled; } } catch (e7) {}
+            try { if (s.at.shy !== undefined) { ly.shy = s.at.shy; } } catch (e8) {}
+            try { if (s.at.locked) { ly.locked = true; } } catch (e9) {}
+        }
+    }
+
     // ---- Aktion ----------------------------------------------------
-    function run(typeIdx, txt, opt) {
-        var comp = app.project.activeItem;
-        if (!(comp && comp instanceof CompItem)) { alert("Bitte eine Komposition auswaehlen."); return; }
+    // keep = true -> Aktualisieren: alten Stand sichern, neu bauen,
+    // Handarbeit zurueckspielen. keep = false -> alles frisch aus dem Panel.
+    function run(typeIdx, txt, opt, keep) {
+        var comp = targetComp();
+        if (!comp) { alert("Keine Zielkomposition.\n\nBitte unter \"Ziel\" eine Komposition waehlen\noder eine Komposition oeffnen."); return; }
         var log = [];
         var data = parseData(txt, log);
         if (!data) { alert(SCRIPT_NAME + ":\n\n" + log.join("\n")); return; }
-        app.beginUndoGroup(SCRIPT_NAME);
+        app.beginUndoGroup(SCRIPT_NAME + (keep ? " - Aktualisieren" : ""));
+        var snap = null;
+        if (keep) {
+            snap = snapshotGenerated(comp);
+            if (snap.n === 0)
+                log.push("Hinweis: In \"" + comp.name + "\" lag noch kein Diagramm - es wurde neu angelegt.");
+        }
         // Vorherige, von diesem Script erzeugte Ebenen IMMER zuerst entfernen.
         // Verhindert, dass sich alte und neue Ebenen ueberlagern (z.B. nach
         // einem Skript-Fehler mitten im Aufbau) -> Ursache fuer Faelle wie
@@ -1493,6 +1761,7 @@
         purgeGenerated(comp);
         try {
             var l = buildChart(comp, typeIdx, data, opt, log);
+            if (keep && snap && snap.n > 0) restoreGenerated(comp, snap, log);
             if (l) l.selected = true;
         } catch (e) {
             var lt = ""; try { if (e && e.line) lt = " (Zeile " + e.line + ")"; } catch (x) {}
@@ -1509,13 +1778,16 @@
         var n = 0;
         for (var i = comp.numLayers; i >= 1; i--) {
             var ly = comp.layer(i);
-            if (ly.comment === TAG) { try { ly.remove(); n++; } catch (e) {} }
+            if (ly.comment === TAG) {
+                try { if (ly.locked) ly.locked = false; } catch (eL) {}
+                try { ly.remove(); n++; } catch (e) {}
+            }
         }
         return n;
     }
     function removeGenerated() {
-        var comp = app.project.activeItem;
-        if (!(comp && comp instanceof CompItem)) { alert("Bitte eine Komposition auswaehlen."); return; }
+        var comp = targetComp();
+        if (!comp) { alert("Keine Zielkomposition.\n\nBitte unter \"Ziel\" eine Komposition waehlen\noder eine Komposition oeffnen."); return; }
         app.beginUndoGroup(SCRIPT_NAME + " - Entfernen");
         var n = purgeGenerated(comp);
         app.endUndoGroup();
@@ -1531,6 +1803,44 @@
 
         var title = pal.add("statictext", undefined, "ChartAnimator");
         try { title.graphics.font = ScriptUI.newFont("dialog", "BOLD", 14); } catch (x) {}
+
+        // ---- Ziel: Komposition zuweisen ----
+        // Ohne Zuweisung arbeitet das Panel wie bisher auf der aktiven
+        // Komposition. Gebunden wird ueber die Item-ID, nicht den Namen.
+        var gTgt = pal.add("panel", undefined, "Ziel");
+        gTgt.orientation = "column"; gTgt.alignChildren = ["fill", "top"];
+        gTgt.margins = 10; gTgt.spacing = 6;
+        var rTgt = gTgt.add("group"); rTgt.orientation = "row"; rTgt.alignChildren = ["left", "center"];
+        var stTgt = rTgt.add("statictext", undefined, "Komposition"); stTgt.preferredSize.width = 120;
+        var ddComp = rTgt.add("dropdownlist", undefined, []);
+        ddComp.alignment = ["fill", "center"];
+        var btnRe = rTgt.add("button", undefined, "\u21BB");
+        btnRe.preferredSize.width = 30;
+        btnRe.helpTip = "Kompositionsliste neu einlesen";
+
+        var compIds = [0];
+        var TGT_BUSY = false;   // ScriptUI feuert onChange auch bei Zuweisung
+        function fillComps() {
+            TGT_BUSY = true;
+            var want = boundCompId, i;
+            ddComp.removeAll();
+            compIds = [0];
+            ddComp.add("item", "Aktive Komposition");
+            var cs = compList();
+            for (i = 0; i < cs.length; i++) { ddComp.add("item", cs[i].name); compIds.push(cs[i].id); }
+            var sel = 0;
+            for (i = 0; i < compIds.length; i++) { if (compIds[i] === want) { sel = i; break; } }
+            boundCompId = compIds[sel];
+            ddComp.selection = sel;
+            TGT_BUSY = false;
+        }
+        ddComp.onChange = function () {
+            if (TGT_BUSY) { return; }
+            var i = this.selection ? this.selection.index : 0;
+            boundCompId = compIds[i] || 0;
+        };
+        btnRe.onClick = function () { fillComps(); };
+        fillComps();
 
         var dd = pal.add("dropdownlist", undefined, TYPES);
         var syncWin = null;   // wird weiter unten gesetzt
@@ -1614,9 +1924,9 @@
         var eFpos = row(gAn, "Verfolg-Position (%)", 85);
         var cZoom = gAn.add("checkbox", undefined, "Am Ende zur Gesamtansicht zoomen"); cZoom.value = true;
 
-        var btn = pal.add("button", undefined, "Diagramm erstellen");
-        btn.onClick = function () {
-            run(dd.selection ? dd.selection.index : 0, ta.text, {
+        function currentType() { return dd.selection ? dd.selection.index : 0; }
+        function currentOpts() {
+            return {
                 w: num(eW, 800), h: num(eH, 450), gap: 30, serGap: 10, divs: 5,
                 labels: cLb.value, fontSize: num(eF, 24), yRight: cYR.value, sepAxes: cSep.value, perElement: cPer.value,
                 sort: (ddSort.selection ? ddSort.selection.index : 0),
@@ -1628,8 +1938,18 @@
                 xGrid: 0, follow: cFol.value, window: num(eWin, 6), windowBars: num(eWin, 4), followPos: num(eFpos, 85),
                 startPos: num(eSpos, 0),
                 zoomOut: cZoom.value, zoomHold: 0.5, zoomDur: 2
-            });
-        };
+            };
+        }
+
+        var gDo = pal.add("group"); gDo.orientation = "row"; gDo.alignChildren = ["fill", "center"];
+        var btn = gDo.add("button", undefined, "Diagramm erstellen");
+        btn.onClick = function () { run(currentType(), ta.text, currentOpts(), false); };
+        var btnUpd = gDo.add("button", undefined, "Aktualisieren");
+        btnUpd.helpTip = "Baut das Diagramm in der Zielkomposition neu auf.\n" +
+                         "Stapelposition, Transform, Keyframes und alle Regler,\n" +
+                         "die nicht aus dem Panel kommen, bleiben erhalten.";
+        btnUpd.onClick = function () { run(currentType(), ta.text, currentOpts(), true); };
+
         var btnDel = pal.add("button", undefined, "Diagramme entfernen");
         btnDel.onClick = function () { removeGenerated(); };
 

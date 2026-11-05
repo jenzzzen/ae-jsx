@@ -7,21 +7,9 @@
  *                Liniendiagramm, Flaechendiagramm.
  *
  * Achsen (getrennt einstell- und ausblendbar):
- *   X-Achse Staerke / X-Achse Farbe
- *   Y-Achse Staerke / Y-Achse Farbe
- *   Wert-Raster (an der Y-Achse):
- *     Raster Staerke / Farbe / Laenge (%) / Strich / Luecke
- *   Kategorie-Raster (an der X-Achse, senkrechte Striche):
- *     X-Raster Staerke / Farbe / Laenge (%) / Strich / Luecke
- *   Staerke 0 = unsichtbar. Strich 0 = durchgezogen, sonst Strichlaenge;
- *   Luecke 0 = Luecke wie Strich. Strichmuster und Staerken sind gegen
- *   die Ebenenskalierung kompensiert.
- *
- * Achsen auf eigenen Ebenen (Option, Standard an):
- *   X- und Y-Achse werden als ZWEI getrennte, an das Diagramm
- *   geparentete Formebenen "X-Achse ..." / "Y-Achse ..." angelegt -
- *   jeweils mit EIGENEN Effekt-Reglern. Groesse kommt via parent.effect
- *   vom Diagramm. Die Ebenen liegen unter der Datenebene.
+ *   X-Achse zeigen / X-Achse Staerke / X-Achse Farbe
+ *   Y-Achse zeigen / Y-Achse Staerke / Y-Achse Farbe
+ *   Raster zeigen  / Raster Staerke  / Raster Farbe
  *
  * Einfaerbung:
  *   - Farbe je Reihe ODER je Balken/Segment (Panel-Checkbox)
@@ -47,6 +35,21 @@
  * FIX: Beim Flaechendiagramm bekamen auch Raster-/Achsenlinien eine
  * Fuellung -> Linienpfade wurden flaechig gefuellt. Jetzt erhaelt nur
  * die Datenflaeche eine Fuellung.
+ * ZIEL & AKTUALISIEREN
+ *   "Ziel > Komposition": das Panel laesst sich fest an eine Komposition
+ *   binden (ueber die Item-ID, Umbenennen schadet nicht). Einstellung
+ *   "Aktive Komposition" = Verhalten wie bisher.
+ *   "Aktualisieren" baut das Diagramm in der Zielkomposition NEU auf und
+ *   uebernimmt dabei die Handarbeit an der Ebene: Stapelposition,
+ *   Transform (Werte und Keyframes), Ebenenattribute und alle Regler,
+ *   die nicht direkt aus dem Panel kommen - Farben, Kontur, Achsen,
+ *   Raster, Sortier-Reihe. Aus dem Panel kommen frisch: Breite, Hoehe,
+ *   Abstand, Reihenabstand, Sortierung. Eigenschaften mit Ausdruck
+ *   werden nie zurueckgeschrieben, sonst wuerde ein alter Ausdruck mit
+ *   alten Daten den neuen ueberschreiben.
+ *   ACHTUNG: "Aktualisieren" ersetzt ALLE erzeugten Diagramme der Komp
+ *   durch das eine aus dem Panel. "Diagramm erstellen" legt dagegen wie
+ *   bisher ein ZUSAETZLICHES Diagramm an.
  **********************************************************************/
 
 (function ChartBuilder(thisObj) {
@@ -56,7 +59,6 @@
     var SLD = "ADBE Slider Control-0001", COL = "ADBE Color Control-0001", CHK = "ADBE Checkbox Control-0001";
     // Live-Umordnung ueber einen Regler auf der Ebene:
     //   0 = Original | 1 = Aufsteigend | 2 = Absteigend | 3 = Alphabetisch (A-Z)
-    var DIVS_HINT = 5;                   // Richtwert fuer die Rasterlinien-Anzahl
     var SORT_NAME = "Sortierung", SORT_MODES = 4;
     var SBASIS_NAME = "Sortier-Reihe";   // Basis: 0=Summe, 1..nSer=jeweilige Reihe
 
@@ -442,41 +444,19 @@
             addCtrl(layer, "ADBE Color Control", colorNames[ci], COL, colorDefs[ci]);
 
         // ---- Regler: Achsen (X und Y getrennt) ----
-        // Als wiederverwendbare Sets -> koennen auf die Datenebene ODER
-        // (bei getrennten Achsen) auf die jeweilige Achsen-Ebene.
-        // Staerke 0 = ausgeblendet (keine extra Checkbox noetig).
         var hasAxes = (type !== T_PIE);
-        // Kategorien liegen auf der X-Achse -> senkrechtes Kategorie-Raster
-        var catX = (type === T_LINE || type === T_AREA || type === T_VBAR || type === T_VSTACK);
-        var sepAxes = (opt.sepAxes && hasAxes);
-        function od(v, d) { return (v === undefined || v === null || isNaN(v)) ? d : v; }
-        function addXAxisCtrls(lyr) {
-            addCtrl(lyr, "ADBE Slider Control", "X-Achse Staerke", SLD, 3);
-            addCtrl(lyr, "ADBE Color Control", "X-Achse Farbe", COL, [0.85, 0.85, 0.88, 1]);
-            if (catX) {
-                addCtrl(lyr, "ADBE Slider Control", "X-Raster Staerke", SLD, od(opt.xgW, 0));
-                addCtrl(lyr, "ADBE Color Control", "X-Raster Farbe", COL, [0.45, 0.45, 0.50, 1]);
-                addCtrl(lyr, "ADBE Slider Control", "X-Raster Laenge", SLD, od(opt.xgLen, 100));
-                addCtrl(lyr, "ADBE Slider Control", "X-Raster Strich", SLD, od(opt.xgDash, 0));
-                addCtrl(lyr, "ADBE Slider Control", "X-Raster Luecke", SLD, od(opt.xgGap, 0));
-            }
+        if (hasAxes) {
+            // Staerke 0 = ausgeblendet (keine extra Checkbox noetig)
+            addCtrl(layer, "ADBE Slider Control", "X-Achse Staerke", SLD, 3);
+            addCtrl(layer, "ADBE Color Control", "X-Achse Farbe", COL, [0.85, 0.85, 0.88, 1]);
+            addCtrl(layer, "ADBE Slider Control", "Y-Achse Staerke", SLD, 3);
+            addCtrl(layer, "ADBE Color Control", "Y-Achse Farbe", COL, [0.85, 0.85, 0.88, 1]);
+            addCtrl(layer, "ADBE Slider Control", "Raster Staerke", SLD, 1);
+            addCtrl(layer, "ADBE Color Control", "Raster Farbe", COL, [0.45, 0.45, 0.50, 1]);
         }
-        function addYAxisCtrls(lyr) {
-            addCtrl(lyr, "ADBE Slider Control", "Y-Achse Staerke", SLD, 3);
-            addCtrl(lyr, "ADBE Color Control", "Y-Achse Farbe", COL, [0.85, 0.85, 0.88, 1]);
-            addCtrl(lyr, "ADBE Slider Control", "Raster Staerke", SLD, od(opt.grW, 1));
-            addCtrl(lyr, "ADBE Color Control", "Raster Farbe", COL, [0.45, 0.45, 0.50, 1]);
-            addCtrl(lyr, "ADBE Slider Control", "Raster Laenge", SLD, od(opt.grLen, 100));
-            addCtrl(lyr, "ADBE Slider Control", "Raster Strich", SLD, od(opt.grDash, 0));
-            addCtrl(lyr, "ADBE Slider Control", "Raster Luecke", SLD, od(opt.grGap, 0));
-        }
-        if (hasAxes && !sepAxes) { addXAxisCtrls(layer); addYAxisCtrls(layer); }
 
         var W = 'effect("Breite")("' + SLD + '")';
         var H = 'effect("Hoehe")("' + SLD + '")';
-        // Groesse vom Diagramm aus Sicht einer geparenteten Achsen-Ebene
-        var Wp = 'parent.effect("Breite")("' + SLD + '")';
-        var Hp = 'parent.effect("Hoehe")("' + SLD + '")';
         // gC = Abstand zwischen Kategorien, gS = Abstand innerhalb der Gruppe
         var GC = (isBarLike(type) ? 'var gC=clamp(effect("Abstand")("' + SLD + '")/100,0,0.9);' : 'var gC=0;');
         var GS = (hasSerGap ? 'var gS=clamp(effect("Reihenabstand")("' + SLD + '")/100,0,0.9);' : 'var gS=0;');
@@ -489,54 +469,6 @@
                    'var f=(Math.abs(s[0])+Math.abs(s[1]))/200;f=Math.max(0.0001,f);' +
                    'var w=effect("' + ctrlName + '")("' + SLD + '");' +
                    'Math.max(0,w)/f;';
-        }
-
-        // Strichelung an eine Kontur haengen. prefix -> Regler
-        //   "<prefix> Strich" (Strichlaenge, 0 = durchgezogen) und
-        //   "<prefix> Luecke" (0 = Luecke wie Strich). Skalen-kompensiert,
-        //   damit das Muster im Bild konstant bleibt.
-        function addDashes(strokeGroup, prefix) {
-            try {
-                var dg = strokeGroup.property("ADBE Vector Stroke Dashes");
-                var dash = dg.addProperty("ADBE Vector Stroke Dash 1");
-                var gap = dg.addProperty("ADBE Vector Stroke Gap 1");
-                var cmp = 'var s=transform.scale;var f=(Math.abs(s[0])+Math.abs(s[1]))/200;f=Math.max(0.0001,f);' +
-                          'var DW=' + W + ',DH=' + H + ';' +
-                          // "durchgezogen" = ein Strich, der sicher laenger ist
-                          // als jeder Pfad (kein 100000 -> sonst Rendergrieseln)
-                          'var SOLID=(Math.abs(DW)+Math.abs(DH))*4+1000;';
-                setExpr(dash, cmp + 'var d=effect("' + prefix + ' Strich")("' + SLD + '");(d>0)?(d/f):SOLID;',
-                    log, prefix + " Strich");
-                setExpr(gap, cmp + 'var d=effect("' + prefix + ' Strich")("' + SLD + '");' +
-                    'var gp=effect("' + prefix + ' Luecke")("' + SLD + '");(d>0)?((gp>0?gp:d)/f):0;',
-                    log, prefix + " Luecke");
-            } catch (e) { log.push(prefix + " Strichelung: " + errStr(e)); }
-        }
-
-        // Pfad einer Wert-Rasterlinie. "Raster Laenge" (%) misst von der
-        // Achse aus: waagerecht ab der Y-Achse (links) nach rechts,
-        // senkrecht ab der Grundlinie (unten) nach oben.
-        function gridPath(gIdx, w, h, ref) {
-            var frac = gIdx / nGrid;
-            var pre = 'var W=' + w + ',H=' + h + ';' +
-                      'var L=' + ref + '("Raster Laenge")("' + SLD + '")/100;';
-            return isVertical(type)
-                ? pre + 'var y=H/2-' + frac + '*H;createPath([[-W/2,y],[-W/2+L*W,y]],[],[],false);'
-                : pre + 'var x=-W/2+' + frac + '*W;createPath([[x,H/2],[x,H/2-L*H]],[],[],false);';
-        }
-        // Pfad eines Kategorie-Rasters: senkrechter Strich genau dort, wo
-        // die Kategorie-Beschriftung steht. Bei Balken folgt er der
-        // Sortierung, bei Linie/Flaeche sitzt er am Datenpunkt.
-        // lenRef = wo der Laengen-Regler sitzt (lokal), sortRef = wo die
-        // Sortier-Regler sitzen (immer auf dem Diagramm).
-        function xGridPath(idx, w, h, lenRef, sortRef) {
-            var pre = 'var W=' + w + ',H=' + h + ';' +
-                      'var L=' + lenRef + '("X-Raster Laenge")("' + SLD + '")/100;';
-            var xE = (type === T_LINE || type === T_AREA)
-                ? 'var x=(' + nCat + '>1)?(-W/2+' + idx + '*(W/' + (nCat - 1 || 1) + ')):0;'
-                : (sortSlotExpr(ordersAll, idx, sortRef, hasBasis) +
-                   'var x=-W/2+(slot+0.5)*(W/' + nCat + ');');
-            return pre + xE + 'createPath([[x,H/2],[x,H/2-L*H]],[],[],false);';
         }
 
         // Farb-Expression je Element (mit Absicherung gegen fehlende Picker)
@@ -569,18 +501,15 @@
         // hochziehen -> Rasterwerte sind glatt (10er, 20er, 50er ...)
         var axisMax = maxV, gridStep = 0, nGrid = 0;
         if (hasAxes) {
-            // Richtwert fuer die Linienanzahl; chooseScale() weicht davon ab,
-            // wenn eine glattere Schrittweite naeher am Hoechstwert liegt.
-            var sc = chooseScale(maxV, DIVS_HINT);
+            var sc = chooseScale(maxV, Math.max(1, Math.round(opt.divs)));
             gridStep = sc.step; nGrid = sc.lines; axisMax = sc.axisMax;
         }
 
         // ---- Phase 1: Struktur (Daten zuerst, Raster/Achsen dahinter) ----
         var root = layer.property("ADBE Root Vectors Group");
         var plan = [];
-        // X- und Y-Achse zuerst -> rendern in Formebenen GANZ OBEN (ueber allen Daten).
-        // Bei getrennten Achsen wandern sie stattdessen auf eigene Ebenen.
-        if (hasAxes && !sepAxes) { plan.push({ kind: "axisX" }); plan.push({ kind: "axisY" }); }
+        // X- und Y-Achse zuerst -> rendern in Formebenen GANZ OBEN (ueber allen Daten)
+        if (type !== T_PIE) { plan.push({ kind: "axisX" }); plan.push({ kind: "axisY" }); }
         if (isBarLike(type)) {
             for (s2 = 0; s2 < nSer; s2++) for (i = 0; i < nCat; i++) plan.push({ kind: "rect", s: s2, i: i });
         } else if (type === T_PIE) {
@@ -588,10 +517,8 @@
         } else {
             for (s2 = 0; s2 < nSer; s2++) plan.push({ kind: "poly", s: s2, i: -1 });
         }
-        if (hasAxes && !sepAxes) {
+        if (hasAxes) {
             for (var gI = 1; gI <= nGrid; gI++) plan.push({ kind: "grid", g: gI }); // ganz hinten
-            // Kategorie-Raster: senkrechte Striche (nur wo Kategorien auf X liegen)
-            if (catX) for (i = 0; i < nCat; i++) plan.push({ kind: "xgrid", i: i });
         }
 
         for (var p = 0; p < plan.length; p++) {
@@ -604,7 +531,6 @@
             else if (k0 === "pie")   gname = "Wert " + (plan[p].i + 1);
             else if (k0 === "poly")  gname = "Reihe " + (plan[p].s + 1);
             else if (k0 === "grid")  gname = "Raster " + plan[p].g;
-            else if (k0 === "xgrid") gname = "X-Raster " + (plan[p].i + 1);
             else if (k0 === "axisX") gname = "X-Achse";
             else                     gname = "Y-Achse";
             try { grp.name = gname; } catch (e) { log.push("Name " + gname + ": " + errStr(e)); }
@@ -619,7 +545,7 @@
             // Konturen
             if (k0 === "rect" || k0 === "pie" ||
                 (k0 === "poly" && (type === T_LINE || type === T_AREA)) ||
-                k0 === "grid" || k0 === "xgrid" || k0 === "axisX" || k0 === "axisY")
+                k0 === "grid" || k0 === "axisX" || k0 === "axisY")
                 gc.addProperty("ADBE Vector Graphic - Stroke");
         }
 
@@ -716,20 +642,14 @@
                 setExpr(lst.property("ADBE Vector Stroke Width"), strokeExpr("Linienstaerke"), log, "Linienstaerke");
 
             } else if (it.kind === "grid") {
-                setExpr(g.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
-                    gridPath(it.g, W, H, "effect"), log, "Rasterlinie");
+                var frac = it.g / nGrid;
+                var gp = isVertical(type)
+                    ? 'var W=' + W + ',H=' + H + ';var y=H/2-' + frac + '*H;createPath([[-W/2,y],[W/2,y]],[],[],false);'
+                    : 'var W=' + W + ',H=' + H + ';var x=-W/2+' + frac + '*W;createPath([[x,-H/2],[x,H/2]],[],[],false);';
+                setExpr(g.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"), gp, log, "Rasterlinie");
                 var gst = g.property("ADBE Vector Graphic - Stroke");
                 setExpr(gst.property("ADBE Vector Stroke Color"), 'effect("Raster Farbe")("' + COL + '");', log, "Rasterfarbe");
                 setExpr(gst.property("ADBE Vector Stroke Width"), strokeExpr("Raster Staerke"), log, "Rasterstaerke");
-                addDashes(gst, "Raster");
-
-            } else if (it.kind === "xgrid") {
-                setExpr(g.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
-                    xGridPath(it.i, W, H, "effect", "effect"), log, "X-Rasterlinie");
-                var xgst = g.property("ADBE Vector Graphic - Stroke");
-                setExpr(xgst.property("ADBE Vector Stroke Color"), 'effect("X-Raster Farbe")("' + COL + '");', log, "X-Rasterfarbe");
-                setExpr(xgst.property("ADBE Vector Stroke Width"), strokeExpr("X-Raster Staerke"), log, "X-Rasterstaerke");
-                addDashes(xgst, "X-Raster");
 
             } else if (it.kind === "axisX") {
                 setExpr(g.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
@@ -751,97 +671,6 @@
             layer.property("ADBE Transform Group").property("ADBE Position")
                  .setValue([comp.width / 2, comp.height / 2]);
         } catch (e) {}
-
-        // ---- Achsen auf eigenen Ebenen (X und Y getrennt) ----
-        // Zwei separate, an das Diagramm geparentete Formebenen mit EIGENEN
-        // Effekt-Reglern (Staerke/Farbe/Raster/Strichelung). Die Groesse
-        // kommt ueber parent.effect vom Diagramm; die Ebenen liegen unter
-        // der Datenebene, damit Balken/Linien immer davor stehen.
-        function strokeExprL(c) {   // Breite lokal, Skalen-Kompensation ueber Parent
-            return 'var s=parent.transform.scale;var f=(Math.abs(s[0])+Math.abs(s[1]))/200;f=Math.max(0.0001,f);' +
-                   'var w=effect("' + c + '")("' + SLD + '");Math.max(0,w)/f;';
-        }
-        function dashesL(st, pre) {
-            try {
-                var dg = st.property("ADBE Vector Stroke Dashes");
-                var dash = dg.addProperty("ADBE Vector Stroke Dash 1");
-                var gap = dg.addProperty("ADBE Vector Stroke Gap 1");
-                var cmp = 'var s=parent.transform.scale;var f=(Math.abs(s[0])+Math.abs(s[1]))/200;f=Math.max(0.0001,f);' +
-                          'var DW=' + Wp + ',DH=' + Hp + ';var SOLID=(Math.abs(DW)+Math.abs(DH))*4+1000;';
-                setExpr(dash, cmp + 'var d=effect("' + pre + ' Strich")("' + SLD + '");(d>0)?(d/f):SOLID;',
-                    log, pre + " Strich");
-                setExpr(gap, cmp + 'var d=effect("' + pre + ' Strich")("' + SLD + '");' +
-                    'var gp=effect("' + pre + ' Luecke")("' + SLD + '");(d>0)?((gp>0?gp:d)/f):0;',
-                    log, pre + " Luecke");
-            } catch (e) { log.push(pre + " Strichelung(Achse): " + errStr(e)); }
-        }
-        function newAxisLayer(nm, lab, addCtrls) {
-            var ax = comp.layers.addShape();
-            try { ax.name = nm; } catch (e) {}
-            ax.comment = TAG;
-            try { ax.label = lab; } catch (e) {}
-            try {
-                ax.property("ADBE Transform Group").property("ADBE Position")
-                  .setValue([comp.width / 2, comp.height / 2]);
-            } catch (e) {}
-            try { ax.parent = layer; } catch (e) { log.push(nm + " parenten: " + errStr(e)); }
-            try { ax.moveAfter(layer); } catch (e) {}   // hinter die Datenebene
-            if (addCtrls) addCtrls(ax);
-            return ax;
-        }
-        function newGroup(rootG, nm) {
-            var grp = rootG.addProperty("ADBE Vector Group");
-            try { grp.name = nm; } catch (e) { log.push("Name " + nm + ": " + errStr(e)); }
-            var gc = grp.property("ADBE Vectors Group");
-            gc.addProperty("ADBE Vector Shape - Group");
-            gc.addProperty("ADBE Vector Graphic - Stroke");
-            return gc;
-        }
-        function buildYLayer() {
-            var ax = newAxisLayer("Y-Achse - " + TYPES[type], 10, addYAxisCtrls);
-            var rg = ax.property("ADBE Root Vectors Group");
-            var gY = newGroup(rg, "Y-Achse");
-            setExpr(gY.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
-                'var W=' + Wp + ',H=' + Hp + ';createPath([[-W/2,-H/2],[-W/2,H/2]],[],[],false);', log, "Y-Achse");
-            var yst = gY.property("ADBE Vector Graphic - Stroke");
-            setExpr(yst.property("ADBE Vector Stroke Color"), 'effect("Y-Achse Farbe")("' + COL + '");', log, "Y-Farbe");
-            setExpr(yst.property("ADBE Vector Stroke Width"), strokeExprL("Y-Achse Staerke"), log, "Y-Staerke");
-            for (var gg = 1; gg <= nGrid; gg++) {
-                var gG = newGroup(rg, "Raster " + gg);
-                setExpr(gG.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
-                    gridPath(gg, Wp, Hp, "effect"), log, "Rasterlinie");
-                var gs = gG.property("ADBE Vector Graphic - Stroke");
-                setExpr(gs.property("ADBE Vector Stroke Color"), 'effect("Raster Farbe")("' + COL + '");', log, "Rasterfarbe");
-                setExpr(gs.property("ADBE Vector Stroke Width"), strokeExprL("Raster Staerke"), log, "Rasterstaerke");
-                dashesL(gs, "Raster");
-            }
-            return ax;
-        }
-        function buildXLayer() {
-            var ax = newAxisLayer("X-Achse - " + TYPES[type], 11, addXAxisCtrls);
-            var rg = ax.property("ADBE Root Vectors Group");
-            var gX = newGroup(rg, "X-Achse");
-            setExpr(gX.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
-                'var W=' + Wp + ',H=' + Hp + ';createPath([[-W/2,H/2],[W/2,H/2]],[],[],false);', log, "X-Achse");
-            var xst = gX.property("ADBE Vector Graphic - Stroke");
-            setExpr(xst.property("ADBE Vector Stroke Color"), 'effect("X-Achse Farbe")("' + COL + '");', log, "X-Farbe");
-            setExpr(xst.property("ADBE Vector Stroke Width"), strokeExprL("X-Achse Staerke"), log, "X-Staerke");
-            if (catX) {
-                for (var ii = 0; ii < nCat; ii++) {
-                    var gXg = newGroup(rg, "X-Raster " + (ii + 1));
-                    // Sortier-Regler stehen auf dem Diagramm -> parent.effect
-                    setExpr(gXg.property("ADBE Vector Shape - Group").property("ADBE Vector Shape"),
-                        xGridPath(ii, Wp, Hp, "effect", "parent.effect"),
-                        log, "X-Rasterlinie");
-                    var xgs = gXg.property("ADBE Vector Graphic - Stroke");
-                    setExpr(xgs.property("ADBE Vector Stroke Color"), 'effect("X-Raster Farbe")("' + COL + '");', log, "X-Rasterfarbe");
-                    setExpr(xgs.property("ADBE Vector Stroke Width"), strokeExprL("X-Raster Staerke"), log, "X-Rasterstaerke");
-                    dashesL(xgs, "X-Raster");
-                }
-            }
-            return ax;
-        }
-        if (sepAxes) { buildYLayer(); buildXLayer(); }
 
         // ---- Beschriftung (Regler stehen auf dem Parent!) ----
         var WL = 'parent.effect("Breite")("' + SLD + '")';
@@ -907,16 +736,270 @@
         return layer;
     }
 
+    /* ================================================================
+     * ZIEL & AKTUALISIEREN
+     * ----------------------------------------------------------------
+     * 1) ZIELKOMPOSITION
+     *    Das Panel kann fest an eine Komposition gebunden werden
+     *    (Auswahl "Ziel > Komposition"). "Aktive Komposition" =
+     *    Verhalten wie bisher. Gebunden wird ueber die Item-ID, ein
+     *    Umbenennen der Komp schadet also nicht. Ist die gebundene
+     *    Komp geloescht, faellt das Panel still auf "aktiv" zurueck.
+     *
+     * 2) AKTUALISIEREN
+     *    Baut das Diagramm mit den aktuellen Panel-Werten NEU auf,
+     *    behaelt aber alles, was an der Ebene selbst eingestellt wurde:
+     *      - Position im Ebenenstapel
+     *      - Transform der Diagramm-Ebenen (Werte UND Keyframes)
+     *      - Ebenenattribute (An/Aus, Modus, Ein-/Ausstieg, Shy, ...)
+     *      - alle Effektregler, die NICHT aus dem Panel kommen
+     *        (Farben, Kontur, Achsen, Raster, Staffelung ...)
+     *      - Keyframes auf allen uebernommenen Reglern
+     *    Regler, die das Panel direkt schreibt (PANEL_CTRLS), kommen
+     *    bewusst frisch aus dem Panel - sonst waere das Panel wirkungslos.
+     *
+     *    Eigenschaften mit AUSDRUCK werden nie zurueckgeschrieben. Der
+     *    Aufbau ist dort die Quelle der Wahrheit; ein alter Ausdruck
+     *    wuerde sonst mit alten Daten den neuen ueberschreiben.
+     *
+     *    Zuordnung alt -> neu: die Steuer-Ebene wird an ihrem Regler
+     *    "Breite" erkannt (nicht am Namen, der sich mit dem Diagrammtyp
+     *    aendert), alle uebrigen Ebenen ueber ihren Namen. Aendern sich
+     *    die Daten, aendern sich die Namen - diese Ebenen starten dann
+     *    zu Recht mit Standardwerten.
+     * ================================================================ */
+
+    // Regler, die direkt aus dem Panel kommen: beim Aktualisieren NICHT
+    // aus dem Altbestand zurueckholen.
+    var PANEL_CTRLS = {};
+    (function () {
+        var n = ["Breite", "Hoehe", "Abstand", "Reihenabstand", SORT_NAME];
+        for (var i = 0; i < n.length; i++) { PANEL_CTRLS[n[i]] = 1; }
+    })();
+
+    var boundCompId = 0;   // 0 = aktive Komposition
+
+    function compList() {
+        var out = [];
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var it = app.project.item(i);
+            if (it instanceof CompItem) { out.push(it); }
+        }
+        return out;
+    }
+    function compById(id) {
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var it = app.project.item(i);
+            if ((it instanceof CompItem) && it.id === id) { return it; }
+        }
+        return null;
+    }
+    // Gebundene Komp, sonst die aktive. null = nichts brauchbar offen.
+    function targetComp() {
+        if (boundCompId) {
+            var c = compById(boundCompId);
+            if (c) { return c; }
+            boundCompId = 0;
+        }
+        var a = app.project.activeItem;
+        return (a && a instanceof CompItem) ? a : null;
+    }
+
+    // ---- Eigenschaften sichern / zurueckschreiben -------------------
+    function tfProp(ly, mn) {
+        try { return ly.property("ADBE Transform Group").property(mn); } catch (e) { return null; }
+    }
+    // 2D-Ebenen kennen "ADBE Rotation" nicht -> zuerst Rotate Z.
+    function rotProp(ly) { return tfProp(ly, "ADBE Rotate Z") || tfProp(ly, "ADBE Rotation"); }
+
+    function grabProp(p) {
+        if (!p) { return null; }
+        var r = { keys: [], val: null, ex: "" };
+        try { if (p.expressionEnabled && p.expression) { r.ex = p.expression; } } catch (e) {}
+        try {
+            if (p.numKeys > 0) {
+                for (var k = 1; k <= p.numKeys; k++) {
+                    var rec = { t: p.keyTime(k), v: p.keyValue(k) };
+                    try { rec.ii = p.keyInInterpolationType(k); rec.oi = p.keyOutInterpolationType(k); } catch (e1) {}
+                    try { rec.ie = p.keyInTemporalEase(k);      rec.oe = p.keyOutTemporalEase(k); } catch (e2) {}
+                    r.keys.push(rec);
+                }
+            } else {
+                r.val = p.value;
+            }
+        } catch (e3) { return null; }
+        return r;
+    }
+    function sameVal(a, b) {
+        if (a instanceof Array && b instanceof Array) {
+            if (a.length !== b.length) { return false; }
+            for (var i = 0; i < a.length; i++) { if (Math.abs(a[i] - b[i]) > 1e-9) { return false; } }
+            return true;
+        }
+        if (typeof a === "number" && typeof b === "number") { return Math.abs(a - b) < 1e-9; }
+        return (a === b);
+    }
+    // Schreibt nur bei echter Abweichung (jedes setValue verwirft Cache).
+    // Liegt auf der frisch gebauten Eigenschaft ein Ausdruck, bleibt sie
+    // unangetastet - der Aufbau gewinnt.
+    function putProp(p, r, log, label) {
+        if (!p || !r) { return; }
+        try { if (p.expressionEnabled && p.expression) { return; } } catch (e) {}
+        try {
+            if (r.keys.length > 0) {
+                for (var d = p.numKeys; d >= 1; d--) { p.removeKey(d); }
+                for (var i = 0; i < r.keys.length; i++) { p.setValueAtTime(r.keys[i].t, r.keys[i].v); }
+                for (var j = 0; j < r.keys.length; j++) {
+                    var kk = j + 1, rc = r.keys[j];
+                    try { if (rc.ii !== undefined && rc.ii !== null) { p.setInterpolationTypeAtKey(kk, rc.ii, rc.oi); } } catch (e1) {}
+                    try { if (rc.ie) { p.setTemporalEaseAtKey(kk, rc.ie, rc.oe); } } catch (e2) {}
+                }
+            } else if (r.val !== null) {
+                for (var d2 = p.numKeys; d2 >= 1; d2--) { p.removeKey(d2); }
+                if (!sameVal(p.value, r.val)) { p.setValue(r.val); }
+            }
+        } catch (e3) { if (log) { log.push("Uebernahme " + label + ": " + errStr(e3)); } }
+    }
+
+    // Die Steuer-Ebene traegt als einzige den Regler "Breite".
+    function isCtrlLayer(ly) {
+        try { return !!ly.property("ADBE Effect Parade").property("Breite"); } catch (e) { return false; }
+    }
+
+    var XF_MN = ["ADBE Anchor Point", "ADBE Position", "ADBE Scale", "ADBE Opacity"];
+
+    function grabLayer(ly) {
+        var s = { name: ly.name, ctrl: isCtrlLayer(ly), xf: {}, fx: {}, at: {} };
+        for (var i = 0; i < XF_MN.length; i++) { s.xf[XF_MN[i]] = grabProp(tfProp(ly, XF_MN[i])); }
+        s.xf.ROT = grabProp(rotProp(ly));
+        try {
+            var par = ly.property("ADBE Effect Parade");
+            for (var e = 1; e <= par.numProperties; e++) {
+                var fx = par.property(e), bag = {};
+                for (var q = 1; q <= fx.numProperties; q++) {
+                    var pr = null;
+                    try { pr = fx.property(q); } catch (eP) { continue; }
+                    if (!pr || pr.propertyType !== PropertyType.PROPERTY) { continue; }
+                    var g = grabProp(pr);
+                    if (g) { bag[q] = g; }
+                }
+                s.fx[fx.name] = bag;
+            }
+        } catch (e2) {}
+        try {
+            s.at.enabled = ly.enabled; s.at.shy = ly.shy; s.at.locked = ly.locked;
+            s.at.motionBlur = ly.motionBlur; s.at.blend = ly.blendingMode; s.at.label = ly.label;
+            s.at.startTime = ly.startTime; s.at.inPoint = ly.inPoint; s.at.outPoint = ly.outPoint;
+        } catch (e3) {}
+        return s;
+    }
+
+    // Zustand aller erzeugten Ebenen einsammeln - VOR dem Purge.
+    function snapshotGenerated(comp) {
+        var snap = { index: 0, aboveName: "", ctrl: null, byName: {}, n: 0 };
+        for (var i = 1; i <= comp.numLayers; i++) {
+            var ly = comp.layer(i);
+            if (ly.comment !== TAG) { continue; }
+            if (!snap.index) {
+                snap.index = i;
+                // Naechste NICHT erzeugte Ebene darueber merken: daran
+                // wird der Block spaeter wieder eingehaengt.
+                for (var a = i - 1; a >= 1; a--) {
+                    var la = comp.layer(a);
+                    if (la.comment !== TAG) { snap.aboveName = la.name; break; }
+                }
+            }
+            var s = grabLayer(ly);
+            snap.n++;
+            if (s.ctrl && !snap.ctrl) { snap.ctrl = s; }
+            if (!snap.byName[s.name]) { snap.byName[s.name] = s; }
+        }
+        return snap;
+    }
+
+    // Zustand auf die frisch gebauten Ebenen zurueckspielen.
+    function restoreGenerated(comp, snap, log) {
+        if (!snap || snap.n === 0) { return; }
+
+        var fresh = [], i;
+        for (i = 1; i <= comp.numLayers; i++) {
+            if (comp.layer(i).comment === TAG) { fresh.push(comp.layer(i)); }
+        }
+        if (fresh.length === 0) { return; }
+
+        // 1) Stapelposition: hinter die gemerkte Ebene zurueck. Rueckwaerts
+        //    einhaengen, damit die Reihenfolge im Block erhalten bleibt.
+        if (snap.aboveName) {
+            var ref = null;
+            for (i = 1; i <= comp.numLayers; i++) {
+                var lr = comp.layer(i);
+                if (lr.comment !== TAG && lr.name === snap.aboveName) { ref = lr; break; }
+            }
+            if (ref) {
+                for (var m = fresh.length - 1; m >= 0; m--) {
+                    try { fresh[m].moveAfter(ref); } catch (eM) {}
+                }
+            }
+        }
+
+        // 2) Je Ebene: Transform, Effektwerte, Attribute
+        for (var f = 0; f < fresh.length; f++) {
+            var ly = fresh[f];
+            var s = (isCtrlLayer(ly) && snap.ctrl) ? snap.ctrl : snap.byName[ly.name];
+            if (!s) { continue; }
+            try { if (ly.locked) { ly.locked = false; } } catch (eL) {}
+
+            for (var x = 0; x < XF_MN.length; x++) {
+                putProp(tfProp(ly, XF_MN[x]), s.xf[XF_MN[x]], log, XF_MN[x]);
+            }
+            putProp(rotProp(ly), s.xf.ROT, log, "Drehung");
+
+            try {
+                var par = ly.property("ADBE Effect Parade");
+                for (var e = 1; e <= par.numProperties; e++) {
+                    var fx = par.property(e);
+                    if (PANEL_CTRLS[fx.name]) { continue; }      // Panel gewinnt
+                    var bag = s.fx[fx.name];
+                    if (!bag) { continue; }
+                    for (var q = 1; q <= fx.numProperties; q++) {
+                        if (!bag[q]) { continue; }
+                        putProp(fx.property(q), bag[q], log, fx.name);
+                    }
+                }
+            } catch (eF) { if (log) { log.push("Effekt-Uebernahme " + ly.name + ": " + errStr(eF)); } }
+
+            try { if (s.at.blend !== undefined) { ly.blendingMode = s.at.blend; } } catch (e1) {}
+            try { if (s.at.label !== undefined) { ly.label = s.at.label; } } catch (e2) {}
+            try { if (s.at.motionBlur !== undefined) { ly.motionBlur = s.at.motionBlur; } } catch (e3) {}
+            try { if (s.at.startTime !== undefined) { ly.startTime = s.at.startTime; } } catch (e4) {}
+            try { if (s.at.outPoint !== undefined) { ly.outPoint = s.at.outPoint; } } catch (e5) {}
+            try { if (s.at.inPoint !== undefined) { ly.inPoint = s.at.inPoint; } } catch (e6) {}
+            try { if (s.at.enabled !== undefined) { ly.enabled = s.at.enabled; } } catch (e7) {}
+            try { if (s.at.shy !== undefined) { ly.shy = s.at.shy; } } catch (e8) {}
+            try { if (s.at.locked) { ly.locked = true; } } catch (e9) {}
+        }
+    }
+
     // ---- Aktion ----------------------------------------------------
-    function run(typeIdx, txt, opt) {
-        var comp = app.project.activeItem;
-        if (!(comp && comp instanceof CompItem)) { alert("Bitte eine Komposition auswaehlen."); return; }
+    // keep = true -> Aktualisieren: alten Stand sichern, neu bauen,
+    // Handarbeit zurueckspielen. keep = false -> zusaetzliches Diagramm.
+    function run(typeIdx, txt, opt, keep) {
+        var comp = targetComp();
+        if (!comp) { alert("Keine Zielkomposition.\n\nBitte unter \"Ziel\" eine Komposition waehlen\noder eine Komposition oeffnen."); return; }
         var log = [];
         var data = parseData(txt, log);
         if (!data) { alert("ChartBuilder:\n\n" + log.join("\n")); return; }
-        app.beginUndoGroup(SCRIPT_NAME);
+        app.beginUndoGroup(SCRIPT_NAME + (keep ? " - Aktualisieren" : ""));
+        var snap = null;
+        if (keep) {
+            snap = snapshotGenerated(comp);
+            if (snap.n === 0)
+                log.push("Hinweis: In \"" + comp.name + "\" lag noch kein Diagramm - es wurde neu angelegt.");
+            purgeGenerated(comp);
+        }
         try {
             var l = buildChart(comp, typeIdx, data, opt, log);
+            if (keep && snap && snap.n > 0) restoreGenerated(comp, snap, log);
             if (l) l.selected = true;
         } catch (e) {
             var lt = ""; try { if (e && e.line) lt = " (Zeile " + e.line + ")"; } catch (x) {}
@@ -927,12 +1010,24 @@
             alert("ChartBuilder - Diagnose:\n\n" + log.join("\n") + "\n\n(Bitte diese Meldung 1:1 zurueckmelden.)");
     }
 
-    function removeGenerated() {
-        var comp = app.project.activeItem;
-        if (!(comp && comp instanceof CompItem)) { alert("Bitte eine Komposition auswaehlen."); return; }
-        app.beginUndoGroup(SCRIPT_NAME + " - Entfernen");
+    // Entfernt alle von diesem Script erzeugten Ebenen (per TAG markiert).
+    // Wird vom "Entfernen"-Knopf und von "Aktualisieren" genutzt.
+    function purgeGenerated(comp) {
         var n = 0;
-        for (var i = comp.numLayers; i >= 1; i--) { var ly = comp.layer(i); if (ly.comment === TAG) { ly.remove(); n++; } }
+        for (var i = comp.numLayers; i >= 1; i--) {
+            var ly = comp.layer(i);
+            if (ly.comment === TAG) {
+                try { if (ly.locked) ly.locked = false; } catch (eL) {}
+                try { ly.remove(); n++; } catch (e) {}
+            }
+        }
+        return n;
+    }
+    function removeGenerated() {
+        var comp = targetComp();
+        if (!comp) { alert("Keine Zielkomposition.\n\nBitte unter \"Ziel\" eine Komposition waehlen\noder eine Komposition oeffnen."); return; }
+        app.beginUndoGroup(SCRIPT_NAME + " - Entfernen");
+        var n = purgeGenerated(comp);
         app.endUndoGroup();
         if (n === 0) alert("Keine erzeugten Diagramm-Ebenen gefunden.");
     }
@@ -946,6 +1041,44 @@
 
         var title = pal.add("statictext", undefined, "ChartBuilder");
         try { title.graphics.font = ScriptUI.newFont("dialog", "BOLD", 14); } catch (x) {}
+
+        // ---- Ziel: Komposition zuweisen ----
+        // Ohne Zuweisung arbeitet das Panel wie bisher auf der aktiven
+        // Komposition. Gebunden wird ueber die Item-ID, nicht den Namen.
+        var gTgt = pal.add("panel", undefined, "Ziel");
+        gTgt.orientation = "column"; gTgt.alignChildren = ["fill", "top"];
+        gTgt.margins = 10; gTgt.spacing = 6;
+        var rTgt = gTgt.add("group"); rTgt.orientation = "row"; rTgt.alignChildren = ["left", "center"];
+        var stTgt = rTgt.add("statictext", undefined, "Komposition"); stTgt.preferredSize.width = 120;
+        var ddComp = rTgt.add("dropdownlist", undefined, []);
+        ddComp.alignment = ["fill", "center"];
+        var btnRe = rTgt.add("button", undefined, "\u21BB");
+        btnRe.preferredSize.width = 30;
+        btnRe.helpTip = "Kompositionsliste neu einlesen";
+
+        var compIds = [0];
+        var TGT_BUSY = false;   // ScriptUI feuert onChange auch bei Zuweisung
+        function fillComps() {
+            TGT_BUSY = true;
+            var want = boundCompId, i;
+            ddComp.removeAll();
+            compIds = [0];
+            ddComp.add("item", "Aktive Komposition");
+            var cs = compList();
+            for (i = 0; i < cs.length; i++) { ddComp.add("item", cs[i].name); compIds.push(cs[i].id); }
+            var sel = 0;
+            for (i = 0; i < compIds.length; i++) { if (compIds[i] === want) { sel = i; break; } }
+            boundCompId = compIds[sel];
+            ddComp.selection = sel;
+            TGT_BUSY = false;
+        }
+        ddComp.onChange = function () {
+            if (TGT_BUSY) { return; }
+            var i = this.selection ? this.selection.index : 0;
+            boundCompId = compIds[i] || 0;
+        };
+        btnRe.onClick = function () { fillComps(); };
+        fillComps();
 
         var dd = pal.add("dropdownlist", undefined, TYPES);
         dd.selection = 0;
@@ -984,11 +1117,7 @@
         var gAx = pal.add("panel", undefined, "Achsen & Raster");
         gAx.orientation = "column"; gAx.alignChildren = ["fill", "top"];
         gAx.margins = 10; gAx.spacing = 6;
-        // Die Rasterschritte waehlt chooseScale() automatisch passend zur
-        // Datenlage - deshalb gibt es hier keine Unterteilungs-Eingabe mehr.
-        var cSep = gAx.add("checkbox", undefined, "X-/Y-Achse als eigene Ebenen");
-        cSep.value = true;
-
+        var eD = row(gAx, "Unterteilungen", 5);
 
         var gSort = pal.add("panel", undefined, "Sortierung (Balken & Kreis)");
         gSort.orientation = "column"; gSort.alignChildren = ["fill", "top"];
@@ -1005,15 +1134,24 @@
         var cLb = gCol.add("checkbox", undefined, "Textebenen anlegen"); cLb.value = true;
         var eF = row(gCol, "Schriftgroesse", 24);
 
-        var btn = pal.add("button", undefined, "Diagramm erstellen");
-        btn.onClick = function () {
-            run(dd.selection ? dd.selection.index : 0, ta.text, {
-                w: num(eW, 800), h: num(eH, 450), gap: num(eG, 30), serGap: num(eGS, 10),
+        function currentType() { return dd.selection ? dd.selection.index : 0; }
+        function currentOpts() {
+            return {
+                w: num(eW, 800), h: num(eH, 450), gap: num(eG, 30), serGap: num(eGS, 10), divs: num(eD, 5),
                 labels: cLb.value, fontSize: num(eF, 24),
-                sort: (ddSort.selection ? ddSort.selection.index : 0),
-                sepAxes: cSep.value
-            });
-        };
+                sort: (ddSort.selection ? ddSort.selection.index : 0)
+            };
+        }
+
+        var gDo = pal.add("group"); gDo.orientation = "row"; gDo.alignChildren = ["fill", "center"];
+        var btn = gDo.add("button", undefined, "Diagramm erstellen");
+        btn.onClick = function () { run(currentType(), ta.text, currentOpts(), false); };
+        var btnUpd = gDo.add("button", undefined, "Aktualisieren");
+        btnUpd.helpTip = "Baut das Diagramm in der Zielkomposition neu auf.\n" +
+                         "Stapelposition, Transform, Keyframes und alle Regler,\n" +
+                         "die nicht aus dem Panel kommen, bleiben erhalten.";
+        btnUpd.onClick = function () { run(currentType(), ta.text, currentOpts(), true); };
+
         var btnDel = pal.add("button", undefined, "Diagramme entfernen");
         btnDel.onClick = function () { removeGenerated(); };
 

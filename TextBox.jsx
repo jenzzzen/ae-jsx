@@ -18,6 +18,14 @@
  *   Alle Werte duerfen auch negativ sein.
  *
  * NEU in v2:
+ *  - POSITIONS-FIX: Die Box-Mitte wird versionsunabhaengig ueber
+ *    t.toComp() + thisLayer.fromComp() bestimmt statt per Hand aus
+ *    sourceRect.top und gespeichertem Ankerpunkt. Damit kuerzt sich
+ *    das bekannte top-Vorzeichenproblem von sourceRectAtTime() heraus:
+ *    Die Box springt nicht mehr um eine Zeilenhoehe, wenn das Projekt
+ *    auf einer anderen AE-Version geoeffnet oder gerendert wird.
+ *  - Leeres/degeneriertes Textrechteck (vor In-Point, waehrend
+ *    Einblenden): Box-Groesse 0 statt Sprung auf einen Fallback-Kasten.
  *  - Asymmetrisches Padding verschiebt die Box korrekt mit
  *    (Mitte wandert um (R-L)/2 bzw. (B-T)/2).
  *  - Reglerabfrage per matchName MIT Index-Fallback (deutsche AE).
@@ -121,11 +129,39 @@
     // Quell-Rechteck der Elternebene holen.
     // Der Zugriff auf sourceText erzwingt eine Abhaengigkeit -> AE
     // rechnet neu, wenn sich der Textinhalt aendert (kein Versatz).
+    // Degeneriertes/leeres Rechteck (Textebene vor In-Point oder waehrend
+    // Einblend-Animation): einmal zur In-Point-Zeit nachmessen; sonst
+    // Groesse 0 statt Sprung auf einen festen Fallback-Kasten.
     var EXRECT =
         'var t=thisLayer.parent;var r=null;' +
         'if(t){try{t.text.sourceText;}catch(er){}' +
-        'try{r=t.sourceRectAtTime(time,false);}catch(er){r=null;}}' +
-        'if(!r)r={left:-100,top:-40,width:200,height:80};';
+        'try{r=t.sourceRectAtTime(time,false);}catch(er){r=null;}' +
+        'if(r&&(r.width<=0||r.height<=0)){' +
+          'try{r=t.sourceRectAtTime(t.inPoint+thisComp.frameDuration,false);}catch(er){}' +
+        '}}' +
+        'var rOK=(t&&r&&r.width>0&&r.height>0);' +
+        'if(!rOK)r={left:0,top:0,width:0,height:0};';
+
+    // Mittelpunkt des (gepolsterten) Rechtecks VERSIONSUNABHAENGIG in den
+    // Raum dieser Box umrechnen:
+    //   Mitte im Quellraum der Textebene  -> t.toComp()  -> Comp-Raum
+    //   Comp-Raum -> thisLayer.fromComp() -> Raum der Box
+    // Beide Richtungen nutzen intern dieselbe sourceRect-/Anker-Konvention,
+    // deshalb kuerzt sich das bekannte top-Vorzeichenproblem exakt heraus -
+    // egal welche AE-Version die Expression auswertet (Team/Render-Farm).
+    // Fallback (3D oder toComp nicht verfuegbar): direkte Formel mit Anker.
+    var EXCENTER =
+        'var cx=r.left+r.width/2+(pR-pL)/2;' +
+        'var cy=r.top +r.height/2+(pB-pT)/2;' +
+        'var P;' +
+        'if(rOK){try{' +
+          'var d3=false;try{d3=t.threeDLayer;}catch(er){}' +
+          'var pc=d3?t.toComp([cx,cy,0]):t.toComp([cx,cy]);' +
+          'P=thisLayer.fromComp(pc);' +
+        '}catch(er){' +
+          'var a=[0,0];try{a=t.transform.anchorPoint;}catch(e2){}' +
+          'P=[cx-a[0],cy-a[1]];' +
+        '}}else{P=value;}';
 
     // =================================================================
     // Regler anlegen / sicherstellen
@@ -199,13 +235,11 @@
 
         setExpr(rect, "ADBE Vector Rect Size",
             EXHELP + EXPAD + EXRECT +
-            '[Math.max(0,r.width+pL+pR),Math.max(0,r.height+pT+pB)];',
+            'rOK?[Math.max(0,r.width+pL+pR),Math.max(0,r.height+pT+pB)]:[0,0];',
             log, "Groesse");
 
         setExpr(rect, "ADBE Vector Rect Position",
-            EXHELP + EXPAD + EXRECT +
-            'var a=[0,0];if(t){try{a=t.transform.anchorPoint;}catch(er){}}' +
-            '[r.left+r.width/2+(pR-pL)/2-a[0],r.top+r.height/2+(pB-pT)/2-a[1]];',
+            EXHELP + EXPAD + EXRECT + EXCENTER + 'P;',
             log, "Position");
 
         setExpr(rect, "ADBE Vector Rect Roundness",
@@ -239,6 +273,12 @@
     // =================================================================
     // Selbstdiagnose: Soll-Werte im Skript nachrechnen und vergleichen
     // =================================================================
+    // Echter End-zu-End-Test: Box und Text sind deckungsgleich geparentet
+    // (Box-Transform = Identitaet), ihre Ebenenraeume fallen also zusammen.
+    // Deshalb lassen sich die GERENDERTEN Rechtecke beider Ebenen direkt
+    // im selben Raum vergleichen - ohne top/anchor selbst zu rechnen und
+    // damit ohne das Vorzeichenproblem. Geprueft wird das echte Ergebnis
+    // der Expression (inkl. toComp/fromComp), nicht eine Soll-Formel.
     function verify(shape, rect, log) {
         var t = shape.parent;
         if (!t) { log.push("HINWEIS: '" + shape.name + "' hat keine Eltern-Ebene - Box kann nicht ausgerichtet werden."); return; }
@@ -247,11 +287,17 @@
         checkExpr(rect, "ADBE Vector Rect Position", "Position", log);
 
         var comp = shape.containingComp;
-        var r, ap;
+        var tr, br;
         try {
-            r = t.sourceRectAtTime(comp.time, false);
-            ap = t.property("ADBE Transform Group").property("ADBE Anchor Point").value;
+            tr = t.sourceRectAtTime(comp.time, false);        // Glyphen
+            br = shape.sourceRectAtTime(comp.time, false);     // gezeichnete Box
         } catch (x) { log.push("Pruefung " + shape.name + ": " + x.toString()); return; }
+
+        if (!(tr.width > 0 && tr.height > 0)) return;          // Text (noch) leer
+        if (!(br.width > 0 && br.height > 0)) {
+            log.push("HINWEIS (" + shape.name + "): Box-Groesse 0 zur aktuellen Zeit (Text evtl. vor In-Point).");
+            return;
+        }
 
         var pA = ctrlVal(shape, NM_ALL, SLD, DEF.all);
         var pX = ctrlVal(shape, NM_PADX, SLD, DEF.padX);
@@ -261,26 +307,23 @@
         var pT = pA + pY + ctrlVal(shape, NM_EXT, SLD, 0);
         var pB = pA + pY + ctrlVal(shape, NM_EXB, SLD, 0);
 
-        var sollW = Math.max(0, r.width + pL + pR);
-        var sollH = Math.max(0, r.height + pT + pB);
-        var sollX = r.left + r.width / 2 + (pR - pL) / 2 - ap[0];
-        var sollY = r.top + r.height / 2 + (pB - pT) / 2 - ap[1];
+        // Erwartung im gemeinsamen Raum:
+        var sollW = Math.max(0, tr.width + pL + pR);
+        var sollH = Math.max(0, tr.height + pT + pB);
+        var tcx = tr.left + tr.width / 2, tcy = tr.top + tr.height / 2;   // Text-Mitte
+        var sollCX = tcx + (pR - pL) / 2, sollCY = tcy + (pB - pT) / 2;    // Box-Soll-Mitte
+        var bcx = br.left + br.width / 2, bcy = br.top + br.height / 2;    // Box-Ist-Mitte
 
-        var istS, istP;
-        try {
-            istS = rect.property("ADBE Vector Rect Size").value;
-            istP = rect.property("ADBE Vector Rect Position").value;
-        } catch (x) { log.push("Pruefung (Werte) " + shape.name + ": " + x.toString()); return; }
-
-        var tol = 0.6;
-        if (!near(istS[0], sollW, tol) || !near(istS[1], sollH, tol))
+        var tol = 1.0;
+        if (!near(br.width, sollW, tol) || !near(br.height, sollH, tol))
             log.push("ABWEICHUNG Groesse (" + shape.name + "): ist [" +
-                     istS[0].toFixed(1) + "," + istS[1].toFixed(1) + "] / soll [" +
+                     br.width.toFixed(1) + "," + br.height.toFixed(1) + "] / soll [" +
                      sollW.toFixed(1) + "," + sollH.toFixed(1) + "]");
-        if (!near(istP[0], sollX, tol) || !near(istP[1], sollY, tol))
-            log.push("ABWEICHUNG Position (" + shape.name + "): ist [" +
-                     istP[0].toFixed(1) + "," + istP[1].toFixed(1) + "] / soll [" +
-                     sollX.toFixed(1) + "," + sollY.toFixed(1) + "]");
+        if (!near(bcx, sollCX, tol) || !near(bcy, sollCY, tol))
+            log.push("ABWEICHUNG Position (" + shape.name + "): Box-Mitte [" +
+                     bcx.toFixed(1) + "," + bcy.toFixed(1) + "] / erwartet [" +
+                     sollCX.toFixed(1) + "," + sollCY.toFixed(1) +
+                     "]  (Text-Mitte [" + tcx.toFixed(1) + "," + tcy.toFixed(1) + "])");
     }
 
     // =================================================================
