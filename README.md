@@ -32,6 +32,7 @@ keine Fremd-Plugins.
 
 ## Entwicklung
 
+Originale liegen im Elternordner `Scripte_After_Effects`, veröffentlichte Kopien in `skripte/` (Abgleich: `tools/sync.ps1`).
 Siehe [CLAUDE.md](CLAUDE.md) für Aufbau und Konventionen. Vor jedem Commit:
 
 ```powershell

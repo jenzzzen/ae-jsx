@@ -9,23 +9,39 @@ statische Landingpage, die sie zum Download anbietet.
 
 ## Aufbau
 
-Projekt-Root ist der Ordner `Landing_Page` – er ist zugleich der
-Aufbewahrungsort für alle Skripte.
-
 ```
-*.jsx            Skripte – liegen bewusst flach im Root, weil index.html sie
-                 relativ verlinkt (href="GlowGlow.jsx") und Pages den Root ausliefert
-index.html       Landingpage – eine Datei, CSS inline, keine Build-Tools, kein JS
-tools/check.ps1  Konsistenzprüfung (vor jedem Commit laufen lassen)
-docs/            interne Doku (PDF) – nicht im Repo
+Scripte_After_Effects/          ← Arbeitsordner des Nutzers, KEIN Repo
+├─ *.jsx                        ORIGINALE – hier legt der Nutzer neue Skripte ab
+│                               und bearbeitet sie. Quelle der Wahrheit.
+├─ Script_BackUps/              alte Stände – nicht anfassen, nie veröffentlichen
+├─ Automatisierung_Midterms/    Arbeitsprojekt – NIEMALS veröffentlichen
+└─ Landing_Page/                ← Projekt-Root + Git-Repo (jenzzzen/ae-jsx)
+   ├─ index.html                Landingpage – eine Datei, CSS inline, kein JS
+   ├─ skripte/*.jsx             veröffentlichte KOPIEN der Originale (Download-Ziel)
+   ├─ tools/sync.ps1            Kopien mit Originalen abgleichen
+   ├─ tools/check.ps1           Konsistenzprüfung
+   └─ docs/                     interne Doku (PDF) – nicht im Repo
 ```
 
-Außerhalb des Projekts (eine Ebene höher, in `Scripte_After_Effects`) liegen
-`Script_BackUps/` (alte Stände) und `Automatisierung_Midterms/` (Arbeitsprojekt).
-Beide gehören nicht zum Repo – nichts daraus hierher kopieren.
+Skripte nie in `skripte/` bearbeiten, immer das Original eine Ebene höher – sonst
+überschreibt der nächste Sync die Änderung. Nicht jedes Original ist veröffentlicht:
+Veröffentlicht ist, was in `skripte/` liegt; eine Karte hat, was `index.html` verlinkt.
+Stand: GridBuilder, PoBaChart, MOGRT_Batch_Import liegen in `skripte/`, aber ohne Karte.
 
-Nicht jedes `.jsx` im Root ist veröffentlicht. Maßgeblich ist, was `index.html`
-verlinkt. Stand: GridBuilder, PoBaChart, MOGRT_Batch_Import sind (noch) ohne Karte.
+## „Aktualisieren“
+
+Wenn der Nutzer sagt, er habe Skripte reingezogen/geändert und es soll
+aktualisiert werden:
+
+1. `powershell -ExecutionPolicy Bypass -File tools/sync.ps1` – zeigt GEAENDERT /
+   NEU / FEHLT.
+2. **GEAENDERT:** `tools/sync.ps1 -Apply`. Kopfkommentar des Originals mit der
+   Karte vergleichen (Version, Regler, Beschreibung) und die Karte nachziehen.
+3. **NEU:** Nie automatisch veröffentlichen. Pro neuem Skript nachfragen, ob es
+   öffentlich werden soll (Arbeits-/Kundenbezug?). Bei Ja: `tools/sync.ps1 -Add
+   Name.jsx` und Karte über den Skill `/skript-veroeffentlichen` anlegen.
+4. **FEHLT:** nachfragen, ob das Skript von der Seite entfernt werden soll.
+5. `tools/check.ps1`, Änderungen zusammenfassen, committen, vor dem Push fragen.
 
 ## Konventionen für die Skripte
 
@@ -71,8 +87,8 @@ Für „neues Skript auf die Seite bringen“ gibt es den Skill
 powershell -ExecutionPolicy Bypass -File tools/check.ps1
 ```
 
-prüft: alle verlinkten `.jsx` existieren, Kartenzahl = Überschrift, ASCII-only,
-keine verbotenen Pfade im Git-Index. Danach committen und auf `main` pushen –
+prüft: alle verlinkten `.jsx` existieren in `skripte/`, Kartenzahl = Überschrift,
+ASCII-only, Kopien = Originale, keine verbotenen Pfade im Git-Index. Danach committen und auf `main` pushen –
 GitHub Pages deployt automatisch (dauert ~1 Minute).
 
 ## Umgebung

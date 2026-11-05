@@ -7,6 +7,10 @@ description: Ein After-Effects-Skript (.jsx) auf der Landingpage veroeffentliche
 
 Argument: Dateiname des Skripts (z. B. `GridBuilder.jsx`). Fehlt es, nachfragen.
 
+0. **Kopie aktualisieren:** Das Original liegt eine Ebene höher
+   (`../<Datei>.jsx`). `tools/sync.ps1 -Add <Datei>.jsx` (neu) bzw.
+   `tools/sync.ps1 -Apply` (geändert) ausführen. Konventionsverstöße immer im
+   Original beheben, nie in `skripte/`.
 1. **Skript lesen** – vor allem den Kopfkommentar und die UI-Definition
    (Regler-Namen exakt so übernehmen, wie sie in AE erscheinen).
 2. **Konventionen prüfen** (siehe CLAUDE.md): ASCII-only, matchNames, Undo-Gruppe,
@@ -20,7 +24,7 @@ Argument: Dateiname des Skripts (z. B. `GridBuilder.jsx`). Fehlt es, nachfragen.
    - Langtext 2–4 Sätze: Was baut das Skript, wie funktioniert es, was ist das
      Besondere. Sachlich, deutsch, echte Umlaute (die HTML-Datei ist UTF-8).
    - Chips mit den Reglern bzw. dem Aufbau
-   - Download-Button `href="<Datei>.jsx" download`
+   - Download-Button `href="skripte/<Datei>.jsx" download`
    Bei Updates: Versionsnummer/Status und geänderte Regler nachziehen.
 4. **Zähler** „Skripte — N“ anpassen.
 5. `powershell -ExecutionPolicy Bypass -File tools/check.ps1` ausführen – muss mit

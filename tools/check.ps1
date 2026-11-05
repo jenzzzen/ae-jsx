@@ -14,9 +14,9 @@ function Ok($msg)   { Write-Host "ok      $msg" -ForegroundColor Green }
 
 # --- 1. Landingpage: Links, Kartenanzahl -----------------------------------
 $html = [IO.File]::ReadAllText((Join-Path $root 'index.html'))
-$linked = [regex]::Matches($html, 'href="([^"/]+\.jsx)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
+$linked = [regex]::Matches($html, 'href="skripte/([^"/]+\.jsx)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
 foreach ($f in $linked) {
-    if (Test-Path (Join-Path $root $f)) { Ok "verlinkt + vorhanden: $f" } else { Fail "index.html verlinkt $f, Datei fehlt" }
+    if (Test-Path (Join-Path $root "skripte/$f")) { Ok "verlinkt + vorhanden: $f" } else { Fail "index.html verlinkt $f, Datei fehlt" }
 }
 
 $cards = ([regex]::Matches($html, '<details class="card"')).Count
@@ -25,14 +25,13 @@ if (-not $m.Success) { Warn 'Ueberschrift "Skripte - N" nicht gefunden' }
 elseif ([int]$m.Groups[1].Value -ne $cards) { Fail "Ueberschrift sagt $($m.Groups[1].Value), es gibt aber $cards Karten" }
 else { Ok "Kartenanzahl = Ueberschrift ($cards)" }
 
-$unlisted = Get-ChildItem -File *.jsx | Where-Object { $linked -notcontains $_.Name } | ForEach-Object Name
+$unlisted = Get-ChildItem -File skripte/*.jsx | Where-Object { $linked -notcontains $_.Name } | ForEach-Object Name
 if ($unlisted) { Write-Host "info    ohne Karte auf der Seite: $($unlisted -join ', ')" -ForegroundColor DarkGray }
 
 # --- 2. Skripte: ASCII, BOM, Zeilenenden ------------------------------------
-foreach ($file in Get-ChildItem -File *.jsx) {
+foreach ($file in Get-ChildItem -File skripte/*.jsx) {
     $bytes = [IO.File]::ReadAllBytes($file.FullName)
     $text  = [Text.Encoding]::UTF8.GetString($bytes)
-    $isPublished = $linked -contains $file.Name
     if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) { Warn "$($file.Name): UTF-8-BOM" }
     if ($text.Contains("`r`n")) { Warn "$($file.Name): CRLF-Zeilenenden" }
     $lines = $text -split "`n"
@@ -43,7 +42,17 @@ foreach ($file in Get-ChildItem -File *.jsx) {
     }
 }
 
-# --- 3. Git: nichts Internes im Index ---------------------------------------
+# --- 3. Abgleich mit den Originalen im Elternordner --------------------------
+$source = Split-Path -Parent $root
+foreach ($file in Get-ChildItem -File skripte/*.jsx) {
+    $orig = Join-Path $source $file.Name
+    if (-not (Test-Path -LiteralPath $orig)) { Warn "$($file.Name): kein Original mehr in $source" }
+    elseif ((Get-FileHash -LiteralPath $orig).Hash -ne (Get-FileHash -LiteralPath $file.FullName).Hash) {
+        Warn "$($file.Name): Original ist neuer/anders - tools/sync.ps1 -Apply ausfuehren"
+    }
+}
+
+# --- 4. Git: nichts Internes im Index ---------------------------------------
 if (Get-Command git -ErrorAction SilentlyContinue) {
     if (Test-Path (Join-Path $root '.git')) {
         $tracked = & git ls-files
