@@ -1,0 +1,16 @@
+# Arbeitsprojekte / interne Daten – nie veroeffentlichen
+Automatisierung_Midterms/
+Script_BackUps/
+docs/
+Landing_Page/
+
+# Lokale Claude-Einstellungen
+.claude/settings.local.json
+
+# System / Editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
+~$*
+.vscode/
