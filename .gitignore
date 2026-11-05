@@ -1,8 +1,5 @@
-# Arbeitsprojekte / interne Daten – nie veroeffentlichen
-Automatisierung_Midterms/
-Script_BackUps/
+# Interne Doku - nicht veroeffentlichen
 docs/
-Landing_Page/
 
 # Lokale Claude-Einstellungen
 .claude/settings.local.json

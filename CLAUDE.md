@@ -9,15 +9,20 @@ statische Landingpage, die sie zum Download anbietet.
 
 ## Aufbau
 
+Projekt-Root ist der Ordner `Landing_Page` – er ist zugleich der
+Aufbewahrungsort für alle Skripte.
+
 ```
 *.jsx            Skripte – liegen bewusst flach im Root, weil index.html sie
                  relativ verlinkt (href="GlowGlow.jsx") und Pages den Root ausliefert
 index.html       Landingpage – eine Datei, CSS inline, keine Build-Tools, kein JS
 tools/check.ps1  Konsistenzprüfung (vor jedem Commit laufen lassen)
 docs/            interne Doku (PDF) – nicht im Repo
-Script_BackUps/  alte Stände – nicht im Repo
-Automatisierung_Midterms/  Arbeitsprojekt – NIEMALS ins öffentliche Repo
 ```
+
+Außerhalb des Projekts (eine Ebene höher, in `Scripte_After_Effects`) liegen
+`Script_BackUps/` (alte Stände) und `Automatisierung_Midterms/` (Arbeitsprojekt).
+Beide gehören nicht zum Repo – nichts daraus hierher kopieren.
 
 Nicht jedes `.jsx` im Root ist veröffentlicht. Maßgeblich ist, was `index.html`
 verlinkt. Stand: GridBuilder, PoBaChart, MOGRT_Batch_Import sind (noch) ohne Karte.

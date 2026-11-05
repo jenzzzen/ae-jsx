@@ -47,7 +47,7 @@ foreach ($file in Get-ChildItem -File *.jsx) {
 if (Get-Command git -ErrorAction SilentlyContinue) {
     if (Test-Path (Join-Path $root '.git')) {
         $tracked = & git ls-files
-        $bad = $tracked | Where-Object { $_ -match '^(Automatisierung_Midterms|Script_BackUps|docs|Landing_Page)/' }
+        $bad = $tracked | Where-Object { $_ -match '^(Automatisierung_Midterms|Script_BackUps|docs)/' }
         if ($bad) { Fail "Interne Dateien im Git-Index: $($bad -join ', ')" } else { Ok 'Git-Index frei von internen Ordnern' }
     }
 } else {
