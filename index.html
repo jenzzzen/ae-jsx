@@ -26,6 +26,7 @@
     --c-textbox: #a48fc7;
     --c-cloud: #dba077;
     --c-texloop: #8ea06c;
+    --c-grid: #c27a93;
   }
 
   *{ box-sizing:border-box; }
@@ -307,7 +308,7 @@
 
   <section class="scripts" id="scripts">
     <div class="wrap">
-      <h2>Skripte — 8</h2>
+      <h2>Skripte — 9</h2>
 
       <details class="card" style="--tab:var(--c-glow)">
         <summary>
@@ -485,6 +486,30 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="skripte/TextureLoop.jsx" download>Herunterladen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-grid)">
+        <summary>
+          <div class="title-block">
+            <h3>GridBuilder.jsx</h3>
+            <p class="desc">Parametrische Gestaltungsraster als Formebene — von Spalten und Modulen bis Goldener Schnitt, Kanon, Hexagon und Perspektive.</p>
+          </div>
+          <span class="status">Panel · v3.4</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Legt Raster-Ebenen in 17 Typen an: Spalten, Zeilen, Modul, Drittel, Goldener Schnitt und Spirale, Dynamische Symmetrie, isometrisch, radial, progressiv, Van-de-Graaf-Kanon, Hexagon, Perspektive, Phyllotaxis und konzentrisch. Alle Typen arbeiten im Satzspiegel (Komposition minus Rand). „Ändern“ baut ein bestehendes Raster in einen anderen Typ um und übernimmt dabei gleichnamige Werte. Ein Hilfsraster (Grundlinie, Karo oder Punkte) wird an ein Raster geparentet und folgt dessen Rand. Solange „Animierbar“ aus ist, rechnen die Expressions nur bei Änderungen statt in jedem Frame.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Rand l/r/o/u</span><span class="chip">Spalten</span><span class="chip">Zeilen</span>
+            <span class="chip">Steg</span><span class="chip">Faktor / Zuwachs</span><span class="chip">Fluchtpunkt</span>
+            <span class="chip">Linienstärke</span><span class="chip">Farbe</span><span class="chip">Flächen</span>
+            <span class="chip">Animierbar</span><span class="chip">Hilfsraster</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="skripte/GridBuilder.jsx" download>Herunterladen</a>
           </div>
         </div></div>
       </details>

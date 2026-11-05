@@ -29,6 +29,7 @@ keine Fremd-Plugins.
 | TextBox.jsx | Box hinter Text, wächst live mit |
 | CloudGenerator.jsx | Wolken-Generator mit 3D-Volumen |
 | TextureLoop.jsx | Randlose Textur-Loops über Motion Tile |
+| GridBuilder.jsx | Parametrische Gestaltungsraster, 17 Typen |
 
 ## Entwicklung
 

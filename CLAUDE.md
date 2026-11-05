@@ -26,7 +26,7 @@ Scripte_After_Effects/          ← Arbeitsordner des Nutzers, KEIN Repo
 Skripte nie in `skripte/` bearbeiten, immer das Original eine Ebene höher – sonst
 überschreibt der nächste Sync die Änderung. Nicht jedes Original ist veröffentlicht:
 Veröffentlicht ist, was in `skripte/` liegt; eine Karte hat, was `index.html` verlinkt.
-Stand: GridBuilder, MOGRT_Batch_Import liegen in `skripte/`, aber ohne Karte.
+Stand: MOGRT_Batch_Import liegt in `skripte/`, aber ohne Karte.
 PoBaChart.jsx ist Arbeitsmaterial und wird NIE veröffentlicht.
 
 ## „Aktualisieren“
