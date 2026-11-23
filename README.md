@@ -30,6 +30,7 @@ keine Fremd-Plugins.
 | CloudGenerator.jsx | Wolken-Generator mit 3D-Volumen |
 | TextureLoop.jsx | Randlose Textur-Loops über Motion Tile |
 | GridBuilder.jsx | Parametrische Gestaltungsraster, 17 Typen |
+| MusicChain.jsx | Song fortlaufend über mehrere Comps verteilen |
 
 ## Entwicklung
 

@@ -27,6 +27,7 @@
     --c-cloud: #dba077;
     --c-texloop: #8ea06c;
     --c-grid: #c27a93;
+    --c-music: #e0806a;
   }
 
   *{ box-sizing:border-box; }
@@ -308,7 +309,7 @@
 
   <section class="scripts" id="scripts">
     <div class="wrap">
-      <h2>Skripte — 9</h2>
+      <h2>Skripte — 10</h2>
 
       <details class="card" style="--tab:var(--c-glow)">
         <summary>
@@ -510,6 +511,29 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="skripte/GridBuilder.jsx" download>Herunterladen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-music)">
+        <summary>
+          <div class="title-block">
+            <h3>MusicChain.jsx</h3>
+            <p class="desc">Verteilt einen Song nahtlos über mehrere Comps, etwa die Slides eines Instagram-Carousels.</p>
+          </div>
+          <span class="status">Panel</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Song wählen, Slide-Comps im Projektfenster markieren, fertig: Jede Comp bekommt eine Musikebene, die per Time-Remapping genau dort weiterspielt, wo die vorige Slide aufgehört hat. Die Reihenfolge folgt den Comp-Namen, natürlich sortiert (Slide_2 vor Slide_10), die Länge kommt wahlweise aus Arbeitsbereich oder Comp-Länge. Eine Timeline-Leiste im Panel zeigt jede Slide als Block, markiert das Song-Ende und schaltet Slides per Klick stumm. Gesteuert wird alles zentral über eine eigene Steuerungs-Comp, pro Slide lässt sich die Lautstärke zusätzlich anpassen.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Song-Start</span><span class="chip">Lautstärke</span><span class="chip">Einblenden</span>
+            <span class="chip">Ausblenden</span><span class="chip">Übergangs-Fade</span><span class="chip">Lautstärke je Slide</span>
+            <span class="chip">Auto-Sync</span><span class="chip">Vorschau-Comp</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="skripte/MusicChain.jsx" download>Herunterladen</a>
           </div>
         </div></div>
       </details>
