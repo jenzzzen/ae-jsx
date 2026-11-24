@@ -28,6 +28,7 @@
     --c-texloop: #8ea06c;
     --c-grid: #c27a93;
     --c-music: #e0806a;
+    --c-emoji: #e6a33e;
   }
 
   *{ box-sizing:border-box; }
@@ -309,7 +310,7 @@
 
   <section class="scripts" id="scripts">
     <div class="wrap">
-      <h2>Skripte — 10</h2>
+      <h2>Skripte — 11</h2>
 
       <details class="card" style="--tab:var(--c-glow)">
         <summary>
@@ -534,6 +535,28 @@
           </div>
           <div class="card-footer">
             <a class="btn" href="skripte/MusicChain.jsx" download>Herunterladen</a>
+          </div>
+        </div></div>
+      </details>
+
+      <details class="card" style="--tab:var(--c-emoji)">
+        <summary>
+          <div class="title-block">
+            <h3>EmojiPaste.jsx</h3>
+            <p class="desc">Emojis per Copy &amp; Paste farbig und als Vektor in die aktive Comp einfügen.</p>
+          </div>
+          <span class="status">Panel</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="card-body"><div class="body-inner">
+          <p>Emoji ins Feld einfügen, Enter drücken: Das Skript zerlegt den Text in Unicode-Sequenzen, inklusive Hauttönen, Flaggen und ZWJ-Kombinationen, und sucht das passende SVG aus Microsofts Fluent-Emoji-Set (MIT-Lizenz, einmalig herunterladen und entpacken). Illustrator wandelt jedes Emoji einmalig in eine .ai-Datei um, die im Cache bleibt; in AE landet sie kontinuierlich gerastert und zentriert nebeneinander in der Comp. Im Stil „Flat“ lässt sich das Emoji direkt in eine Formebene umwandeln, gleichfarbige Flächen werden dabei zu Gruppen mit Hex-Namen zusammengefasst, ohne die Überdeckung zu verändern. Voraussetzung: Illustrator ist installiert und in den AE-Voreinstellungen ist „Skripten das Schreiben von Dateien und den Zugriff auf das Netzwerk erlauben“ aktiv.</p>
+          <p class="reglerlabel">Regler</p>
+          <div class="chips">
+            <span class="chip">Stil: Color / Flat</span><span class="chip">Größe (px)</span><span class="chip">In Formebene umwandeln</span>
+            <span class="chip">Gruppen nach Farbe zusammenfassen</span><span class="chip">Fluent-Ordner</span><span class="chip">Index neu</span>
+          </div>
+          <div class="card-footer">
+            <a class="btn" href="skripte/EmojiPaste.jsx" download>Herunterladen</a>
           </div>
         </div></div>
       </details>

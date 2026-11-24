@@ -31,6 +31,7 @@ keine Fremd-Plugins.
 | TextureLoop.jsx | Randlose Textur-Loops über Motion Tile |
 | GridBuilder.jsx | Parametrische Gestaltungsraster, 17 Typen |
 | MusicChain.jsx | Song fortlaufend über mehrere Comps verteilen |
+| EmojiPaste.jsx | Emojis per Copy & Paste als Vektor einfügen (Fluent Emoji, braucht Illustrator) |
 
 ## Entwicklung
 
