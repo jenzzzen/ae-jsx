@@ -4,18 +4,23 @@
 
     Ablauf:
       1. Song w\u00E4hlen, L\u00E4nge aus Arbeitsbereich oder Comp-L\u00E4nge w\u00E4hlen (jederzeit umschaltbar)
-      2. Slide-Comps im Projektfenster markieren -> "Musik anlegen"
+      2. Slide-Comps im Projektfenster markieren -> "Musik auf markierte Comps legen"
          (Reihenfolge = Name, nat\u00FCrlich sortiert: Slide_2 vor Slide_10)
+      Song wechseln: einfach im Dropdown ausw\u00E4hlen.
 
     Timeline-Leiste: jede Slide als Block, Breite = L\u00E4nge. Klick = Musik an/aus.
                      Rote Linie = hier ist der Song zu Ende.
     Liste:           Doppelklick = an/aus \u00B7 "Entfernen" = markierte Slides aus der Kette nehmen
                      (ohne Auswahl: alles entfernen)
 
-    Steuerung: Ordner "\u266A Musik" > Comp "MUSIK_STEUERUNG" > Ebene "Regler"  (Button "Regler")
-      Effekte (F3):  Song-Start (s) \u00B7 Lautst\u00E4rke (dB) \u00B7 Einblenden (s) \u00B7 Ausblenden (s) \u00B7 \u00DCbergangs-Fade (Frames)
-      Pro Slide:     Ebene "\u266A Musik" > Effekt "Lautst\u00E4rke dieser Slide (dB)"
-      Marker:        eine Zeile pro Slide (an/aus, Start, Dauer) \u2013 wird vom Skript gepflegt
+    Steuerung: Ordner "\u266A Musik" > Comp "MUSIK_STEUERUNG" > Ebene "Regler" (Button "Regler", dann F3)
+      Song-Start (s) \u00B7 Lautst\u00E4rke (dB) \u00B7 Einblenden (s) \u00B7 Ausblenden (s)
+      \u00DCbergang: Ausblenden (s) \u00B7 \u00DCbergang: Einblenden (s)
+      Pro Slide: Ebene "\u266A Musik" > Effekt "Lautst\u00E4rke dieser Slide (dB)"
+      Marker auf "Regler": eine Zeile pro Slide (an/aus, Start, Dauer) \u2013 wird vom Skript gepflegt.
+
+    Comps werden intern per ID verkn\u00FCpft. L\u00E4ngen werden per Auto-Sync oder "Aktualisieren" \u00FCbernommen.
+    "Aktualisieren" repariert au\u00DFerdem doppelte/umbenannte Regler und schreibt alle Expressions neu.
 */
 
 (function MusicChain(thisObj) {
@@ -32,10 +37,10 @@
     var C_VOL = "Lautst\u00E4rke (dB)";
     var C_IN = "Einblenden (s)";
     var C_OUT = "Ausblenden (s)";
-    var C_CUT = "\u00DCbergangs-Fade (Frames)";
-    var C_SLIDE_VOL = "Lautst\u00E4rke dieser Slide (dB)";
     var C_TOUT = "\u00DCbergang: Ausblenden (s)";
     var C_TIN = "\u00DCbergang: Einblenden (s)";
+    var C_CUT = "\u00DCbergangs-Fade (Frames)"; // alt, wird migriert
+    var C_SLIDE_VOL = "Lautst\u00E4rke dieser Slide (dB)";
     var SLIDERS = [[C_START, 0], [C_VOL, 0], [C_IN, 0.5], [C_OUT, 1], [C_TOUT, 1], [C_TIN, 0.8]];
 
     // Farben
@@ -68,9 +73,7 @@
 
     function q(s) { return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'; }
     function pad(n) { return (n < 10 ? "0" : "") + n; }
-    function tc(t, fps) {
-        try { return timeToCurrentFormat(t, fps); } catch (e) { return t.toFixed(2) + " s"; }
-    }
+    function tc(t, fps) { try { return timeToCurrentFormat(t, fps); } catch (e) { return t.toFixed(2) + " s"; } }
     function secs(t) { return t.toFixed(2).replace(".", ",") + " s"; }
 
     function findItem(name, type) {
@@ -117,19 +120,63 @@
         return null;
     }
 
-    function ensureSliders(L) {
-        var fx = L.property("ADBE Effect Parade");
-        var old = fx.property(C_CUT), oldSec = null;
-        if (old) { oldSec = old.property(1).value * L.containingComp.frameDuration; old.remove(); }
-        for (var k = 0; k < SLIDERS.length; k++) {
-            if (!fx.property(SLIDERS[k][0])) {
-                var e = fx.addProperty("ADBE Slider Control");
-                e.name = SLIDERS[k][0];
-                var v = SLIDERS[k][1];
-                if (oldSec !== null && (SLIDERS[k][0] === C_TOUT || SLIDERS[k][0] === C_TIN)) v = oldSec;
-                e.property(1).setValue(v);
-            }
+    // ---------- Effekte robust finden ----------
+    // Umlaute in Effektnamen k\u00F6nnen nach Speichern/\u00D6ffnen anders kodiert sein
+    // (falsch dekodiert oder als a + Trema zerlegt). Deshalb tolerant vergleichen.
+    function nameKey(s) {
+        s = String(s)
+            .replace(/\u00C3\u00A4|\u00E4|a\u0308/g, "ae").replace(/\u00C3\u00B6|\u00F6|o\u0308/g, "oe")
+            .replace(/\u00C3\u00BC|\u00FC|u\u0308/g, "ue").replace(/\u00C3\u0084|\u00C3\u201E|\u00C4|A\u0308/g, "ae")
+            .replace(/\u00C3\u0096|\u00C3\u2013|\u00D6|O\u0308/g, "oe").replace(/\u00C3\u009C|\u00C3\u0153|\u00DC|U\u0308/g, "ue")
+            .replace(/\u00C3\u009F|\u00C3\u0178|\u00DF/g, "ss");
+        return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+    function asciiKey(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+    function sameName(a, b) { return nameKey(a) === nameKey(b) || asciiKey(a) === asciiKey(b); }
+
+    function findEffects(L, name) {
+        var fx = L.property("ADBE Effect Parade"), r = [];
+        for (var i = 1; i <= fx.numProperties; i++) if (sameName(fx.property(i).name, name)) r.push(fx.property(i));
+        return r;
+    }
+
+    // genau einen Slider "name" an Position pos sicherstellen (Duplikate weg, Name reparieren)
+    function ensureOne(L, name, def, pos) {
+        var found = findEffects(L, name), e;
+        if (found.length) {
+            e = found[0];
+            for (var k = found.length - 1; k >= 1; k--) found[k].remove();
+            e = findEffects(L, name)[0];
+        } else {
+            e = L.property("ADBE Effect Parade").addProperty("ADBE Slider Control");
+            e.name = name;
+            e.property(1).setValue(def);
         }
+        if (e.name !== name) e.name = name;
+        if (pos && e.propertyIndex !== pos) { try { e.moveTo(pos); } catch (x) {} }
+        return e;
+    }
+
+    function ensureSliders(L) {
+        var olds = findEffects(L, C_CUT), oldSec = null;
+        if (olds.length) {
+            oldSec = olds[0].property(1).value * L.containingComp.frameDuration;
+            for (var i = olds.length - 1; i >= 0; i--) olds[i].remove();
+        }
+        for (var k = 0; k < SLIDERS.length; k++) {
+            var nm = SLIDERS[k][0], v = SLIDERS[k][1];
+            if (oldSec !== null && (nm === C_TOUT || nm === C_TIN)) v = oldSec;
+            ensureOne(L, nm, v, k + 1);
+        }
+    }
+
+    function sliderIndex(name) {
+        for (var k = 0; k < SLIDERS.length; k++) if (SLIDERS[k][0] === name) return k + 1;
+        return -1;
+    }
+    function ctrlValue(L, name) {
+        var f = findEffects(L, name);
+        return f.length ? f[0].property(1).value : 0;
     }
 
     function getCtrl(fps) {
@@ -151,13 +198,14 @@
         return a;
     }
 
+    // entfernt Musik-Layer, gibt vorherige Slide-Lautst\u00E4rke zur\u00FCck (oder null)
     function removeMusic(comp) {
         var prev = null, ls = musicLayers(comp);
         for (var i = ls.length - 1; i >= 0; i--) {
             if (prev === null) {
                 try {
-                    var e = ls[i].property("ADBE Effect Parade").property(C_SLIDE_VOL);
-                    if (e) prev = e.property(1).value;
+                    var f = findEffects(ls[i], C_SLIDE_VOL);
+                    if (f.length) prev = f[0].property(1).value;
                 } catch (x) {}
             }
             ls[i].remove();
@@ -170,7 +218,8 @@
         var p = findComp(OLD_PREVIEW_COMP); if (p) p.remove();
     }
 
-    // ---------- Chain ----------
+    // ---------- Chain (gespeichert im Kommentar der Regler-Ebene) ----------
+    // Format: MODE \u241E 1:id:Name \u241E 0:id:Name ...
     function chainLoad() {
         var L = ctrlLayerOf(findComp(CTRL_COMP));
         if (!L || !L.comment) return null;
@@ -183,8 +232,7 @@
             else if (/^[01]:/.test(p)) { on = p.charAt(0) === "1"; name = p.substring(2); }
             if (!name && !id) continue;
             var c = id ? compById(id) : findComp(name);
-            if (c) name = c.name;
-            if (!c) missing.push(name);
+            if (c) name = c.name; else missing.push(name);
             entries.push({ name: name, on: on, comp: c });
         }
         return { ctrl: L, useWA: mode === "WA", entries: entries, missing: missing };
@@ -236,7 +284,8 @@
 
     // ---------- Expressions ----------
     function head() { return "var c = comp(" + q(CTRL_COMP) + ").layer(" + q(CTRL_LAYER) + ");"; }
-    function fx(name) { return "c.effect(" + q(name) + ")(1).value"; }
+    // per Index, damit die Kodierung der Namen egal ist (Name steht als Kommentar dabei)
+    function fx(name) { return "c.effect(" + sliderIndex(name) + ")(1).value /* " + name + " */"; }
 
     var INFO_FN = [
         "function info(i) {",
@@ -265,10 +314,10 @@
             "var first = -1, last = -1;",
             "for (var i = 0; i < n; i++) if (info(i).on) { if (first < 0) first = i; last = i; }",
             "var lt = time - t0;",
-            "var vol = " + fx(C_VOL) + " + effect(" + q(C_SLIDE_VOL) + ")(1);",
+            "var vol = " + fx(C_VOL) + " + effect(1)(1); /* " + C_SLIDE_VOL + " */",
             "var fin = " + fx(C_IN) + ", fout = " + fx(C_OUT) + ";",
             "var tout = " + fx(C_TOUT) + ", tin = " + fx(C_TIN) + ";",
-            "// S-Kurve (Raised Cosine): startet und endet weich, keine Kanten",
+            "// S-Kurve (Raised Cosine): startet und endet weich",
             "function S(x) { x = Math.max(0, Math.min(1, x)); return 0.5 - 0.5 * Math.cos(Math.PI * x); }",
             "var g = (!me.on || lt < 0 || lt > d) ? 0 : 1;",
             "var a = (idx == first) ? fin : tin;",
@@ -280,17 +329,14 @@
         ].join("\n");
     }
 
-    // Expressions aller Musik-Layer neu schreiben (nach Moduswechsel / Entfernen)
+    // Regler reparieren + Expressions aller Musik-Layer neu schreiben
     function rebuild(ch) {
         ensureSliders(ch.ctrl);
         for (var j = 0; j < ch.entries.length; j++) {
             var e = ch.entries[j], ls = musicLayers(e.comp);
             for (var k = 0; k < ls.length; k++) {
                 var L = ls[k];
-                if (!L.property("ADBE Effect Parade").property(C_SLIDE_VOL)) {
-                    var sv = L.property("ADBE Effect Parade").addProperty("ADBE Slider Control");
-                    sv.name = C_SLIDE_VOL;
-                }
+                ensureOne(L, C_SLIDE_VOL, 0, 1);
                 L.property("ADBE Time Remapping").expression = remapExpr(j);
                 L.property("ADBE Audio Group").property("ADBE Audio Levels").expression = levelsExpr(j);
                 L.audioEnabled = e.on;
@@ -305,8 +351,7 @@
             all += d;
             if (ch.entries[i].on) music += d;
         }
-        var start = ch.ctrl.property("ADBE Effect Parade").property(C_START).property(1).value;
-        return { all: all, music: music, start: start };
+        return { all: all, music: music, start: ctrlValue(ch.ctrl, C_START) };
     }
 
     // ---------- Actions ----------
@@ -371,9 +416,7 @@
                 L.outPoint = comp.duration;
                 if (audio.hasVideo) L.enabled = false;
                 L.moveToEnd();
-                var sv = L.property("ADBE Effect Parade").addProperty("ADBE Slider Control");
-                sv.name = C_SLIDE_VOL;
-                sv.property(1).setValue(prevVol === null ? 0 : prevVol);
+                ensureOne(L, C_SLIDE_VOL, prevVol === null ? 0 : prevVol, 1);
             }
             rebuild(ch);
         } catch (e) {
@@ -447,7 +490,7 @@
         if (silent && markersUpToDate(ch)) return false;
         app.beginUndoGroup(silent ? "MusicChain: Auto-Sync" : "MusicChain: Aktualisieren");
         writeMarkers(ch);
-        if (!silent) rebuild(ch); // Expressions auf neuesten Stand bringen
+        if (!silent) rebuild(ch);
         app.endUndoGroup();
         fillList();
         return true;
@@ -553,6 +596,7 @@
     btnRefresh.preferredSize = [30, 24]; btnRefresh.alignment = ["right", "center"];
     btnRefresh.helpTip = "Song-Liste und \u00DCbersicht neu laden";
     var songInfo = sSong.add("statictext", undefined, "");
+    songInfo.alignment = ["fill", "top"];
     colorText(songInfo, COL_DIM, F_SMALL);
 
     var rowMode = sSong.add("group"); rowMode.alignChildren = ["left", "center"];
@@ -605,11 +649,9 @@
             tlSegs.push({ x0: x, x1: x + w, i: i });
             x += w;
         }
-        // Zeitskala
         g.drawString("0", dimPen, 0, 0, F_SMALL);
         var endLbl = secs(total);
         g.drawString(endLbl, dimPen, W - g.measureString(endLbl, F_SMALL)[0], 0, F_SMALL);
-        // Song-Ende
         if (cache.song) {
             var avail = cache.song.duration - cache.tot.start, acc = 0, sx = 0;
             for (var j = 0; j < ch.entries.length; j++) {
@@ -662,7 +704,7 @@
 
     var r2 = sList.add("group"); r2.alignChildren = ["left", "center"];
     var btnSync = r2.add("button", undefined, "Aktualisieren");
-    btnSync.helpTip = "L\u00E4ngen / Arbeitsbereiche neu einlesen";
+    btnSync.helpTip = "L\u00E4ngen neu einlesen, Regler reparieren, Expressions neu schreiben";
     var cbAuto = r2.add("checkbox", undefined, "Auto-Sync");
     cbAuto.helpTip = "Pr\u00FCft jede Sekunde auf ge\u00E4nderte L\u00E4ngen / Arbeitsbereiche (solange das Panel offen ist)";
 
@@ -670,7 +712,7 @@
     var sTools = section("Werkzeuge");
     var r3 = sTools.add("group"); r3.alignChildren = ["fill", "center"]; r3.spacing = 4;
     var btnCtrl = r3.add("button", undefined, "Regler");
-    btnCtrl.helpTip = "Song-Start, Lautst\u00E4rke, Fades";
+    btnCtrl.helpTip = "\u00D6ffnet MUSIK_STEUERUNG und w\u00E4hlt die Regler-Ebene aus. Effekte siehst du mit F3 (Effekteinstellungen).";
     var btnPrev = r3.add("button", undefined, "Vorschau-Comp");
     btnPrev.helpTip = "Alle Slides hintereinander zum Anh\u00F6ren";
 
@@ -683,6 +725,27 @@
         var s = lb.selection instanceof Array ? lb.selection : [lb.selection];
         for (var i = 0; i < s.length; i++) a.push(s[i].index);
         return a;
+    }
+
+    var items = [];
+    var ddLock = false;
+    function selectSong(item) {
+        ddLock = true;
+        var idx = -1;
+        for (var i = 0; i < items.length; i++) if (items[i] === item) idx = i;
+        if (idx < 0) for (var j = 0; j < items.length; j++) if (cache.song && items[j] === cache.song) idx = j;
+        if (idx < 0 && items.length) idx = 0;
+        if (idx >= 0) dd.selection = idx;
+        ddLock = false;
+    }
+    function refreshSongs() {
+        ddLock = true;
+        var keep = dd.selection ? items[dd.selection.index] : null;
+        dd.removeAll();
+        items = audioItems();
+        for (var i = 0; i < items.length; i++) dd.add("item", items[i].name + "   (" + secs(items[i].duration) + ")");
+        selectSong(keep);
+        ddLock = false;
     }
 
     var filling = false;
@@ -730,32 +793,12 @@
         }
         sumTxt.text = "Mit Musik: " + secs(t.music) + " von " + secs(t.all) + status;
         colorText(sumTxt, col, F_SMALL);
+
         if (cache.song && items.length) selectSong(cache.song);
         songInfo.text = cache.song ? "Aktiv: " + cache.song.name + "  \u00B7  " + secs(cache.song.duration) +
                         (t.start ? "  \u00B7  Start bei " + secs(t.start) : "") : "";
         filling = false;
         redrawTl();
-    }
-
-    var items = [];
-    var ddLock = false;
-    function refreshSongs() {
-        ddLock = true;
-        var keep = dd.selection ? items[dd.selection.index] : null;
-        dd.removeAll();
-        items = audioItems();
-        for (var i = 0; i < items.length; i++) dd.add("item", items[i].name + "   (" + secs(items[i].duration) + ")");
-        selectSong(keep);
-        ddLock = false;
-    }
-    function selectSong(item) {
-        ddLock = true;
-        var idx = -1;
-        for (var i = 0; i < items.length; i++) if (items[i] === item) idx = i;
-        if (idx < 0) for (var j = 0; j < items.length; j++) if (cache.song && items[j] === cache.song) idx = j;
-        if (idx < 0 && items.length) idx = 0;
-        if (idx >= 0) dd.selection = idx;
-        ddLock = false;
     }
 
     // Auto-Sync
@@ -768,12 +811,12 @@
         if (cbAuto.value) taskId = app.scheduleTask("$.global.MusicChainTick()", 1000, true);
     };
 
-    btnRefresh.onClick = function () { refreshSongs(); fillList(); };
     dd.onChange = function () {
         if (ddLock || !dd.selection) return;
         var it = items[dd.selection.index];
         if (cache.ch && cache.song && it !== cache.song) swapSong(it);
     };
+    btnRefresh.onClick = function () { refreshSongs(); fillList(); };
     btnApply.onClick = function () { apply(dd.selection ? items[dd.selection.index] : null, rbWA.value); };
     rbWA.onClick = function () { setMode(true); };
     rbDur.onClick = function () { setMode(false); };
