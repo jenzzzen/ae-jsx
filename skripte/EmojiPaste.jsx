@@ -183,18 +183,52 @@
     }
 
     // ---------- Illustrator-Konvertierung (SVG -> AI, gebuendelt) ----------
+    // Laeuft in Illustrator (wird per BridgeTalk als Quelltext geschickt).
+    // Oeffnet das SVG, skaliert die Grafik samt Zeichenflaeche auf die Zielgroesse, speichert als .ai
+    function aiWorker(J) {
+        var lvl = app.userInteractionLevel;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+        for (var i = 0; i < J.length; i++) {
+            try {
+                var d = app.open(new File(J[i][0]));
+                var ab = d.artboards[0].artboardRect; // [L, T, R, B]
+                var s = J[i][2] / (ab[2] - ab[0]);
+                if (Math.abs(s - 1) > 0.0001) {
+                    // alles in eine Gruppe (Reihenfolge bleibt erhalten)
+                    var all = [];
+                    for (var l = 0; l < d.layers.length; l++) {
+                        var lay = d.layers[l]; lay.locked = false; lay.visible = true;
+                        for (var k = 0; k < lay.pageItems.length; k++) {
+                            var it = lay.pageItems[k];
+                            if (it.parent.typename === "Layer") all.push(it);
+                        }
+                    }
+                    var g = d.layers[0].groupItems.add();
+                    for (var m = 0; m < all.length; m++) all[m].move(g, ElementPlacement.PLACEATEND);
+                    var gb = g.geometricBounds; // [l, t, r, b]
+                    g.resize(s * 100, s * 100, true, true, true, true, s * 100, Transformation.TOPLEFT);
+                    var L = gb[0] - (gb[0] - ab[0]) * s;
+                    var T = gb[1] + (ab[1] - gb[1]) * s;
+                    d.artboards[0].artboardRect = [L, T, L + (ab[2] - ab[0]) * s, T - (ab[1] - ab[3]) * s];
+                }
+                var o = new IllustratorSaveOptions(); o.pdfCompatible = true;
+                d.saveAs(new File(J[i][1]), o);
+                d.close(SaveOptions.DONOTSAVECHANGES);
+            } catch (e) {}
+        }
+        app.userInteractionLevel = lvl;
+        return "ok";
+    }
+
     function convertWithIllustrator(jobs, status) {
         if (!jobs.length) return;
         var target = BridgeTalk.getSpecifier("illustrator");
         if (!target) throw new Error("Illustrator wurde nicht gefunden \u2013 wird f\u00fcr die SVG-Umwandlung ben\u00f6tigt.");
         var arr = [];
-        for (var i = 0; i < jobs.length; i++) arr.push('["' + esc(jobs[i].src.absoluteURI) + '","' + esc(jobs[i].dst.absoluteURI) + '"]');
-        var body =
-            "(function(){var lvl=app.userInteractionLevel;app.userInteractionLevel=UserInteractionLevel.DONTDISPLAYALERTS;" +
-            "var J=[" + arr.join(",") + "];" +
-            "for(var i=0;i<J.length;i++){try{var d=app.open(new File(J[i][0]));var o=new IllustratorSaveOptions();o.pdfCompatible=true;" +
-            "d.saveAs(new File(J[i][1]),o);d.close(SaveOptions.DONOTSAVECHANGES);}catch(e){}}" +
-            "app.userInteractionLevel=lvl;return 'ok';})();";
+        for (var i = 0; i < jobs.length; i++) {
+            arr.push('["' + esc(jobs[i].src.absoluteURI) + '","' + esc(jobs[i].dst.absoluteURI) + '",' + Number(jobs[i].size) + ']');
+        }
+        var body = "(" + aiWorker.toString() + ")([" + arr.join(",") + "]);";
         if (status) { status.text = "Illustrator wandelt " + jobs.length + " Emoji(s) um\u2026"; status.window.update(); }
         var bt = new BridgeTalk();
         bt.target = target;
@@ -444,8 +478,9 @@
         for (var i = 0; i < segs.length; i++) {
             var src = findSource(assets, segs[i].rel, style);
             if (!src) { missing.push(segs[i].rel); continue; }
-            var file = new File(outDir.fsName + "/" + segs[i].key + ".ai");
-            if (!file.exists) jobs.push({ src: src, dst: file });
+            var px = Math.max(8, Math.round(size));
+            var file = new File(outDir.fsName + "/" + segs[i].key + "_" + px + ".ai");
+            if (!file.exists) jobs.push({ src: src, dst: file, size: px });
             items.push({ name: segs[i].rel.split("/")[0], file: file });
         }
         if (!items.length) { alert("Nichts eingef\u00fcgt.\n\n" + LAST_PROBLEM); return; }
@@ -467,6 +502,7 @@
                 layer.startTime = comp.time;
                 layer.name = it.name;
                 var sc = size / footage.width * 100;
+                if (Math.abs(sc - 100) < 1) sc = 100; // Illustrator hat bereits auf Zielgroesse skaliert
                 layer.property("ADBE Transform Group").property("ADBE Scale").setValue([sc, sc]);
                 layer.property("ADBE Transform Group").property("ADBE Position").setValue([x, comp.height / 2]);
                 layer.collapseTransformation = true; // kontinuierlich rastern
